@@ -1972,7 +1972,13 @@ let tt;function showToast(msg,type=''){const t=document.getElementById('toast');
     <div id="cfg-test-result" style="font-size:12px;font-family:var(--ff-mono);text-align:center;min-height:18px"></div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
       <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">Supabase SQL – einmalig ausführen falls noch nicht gemacht:<br>
-<code style="font-size:9px;color:var(--accent2);background:var(--card);padding:4px 6px;border-radius:5px;display:block;margin-top:4px;white-space:pre-wrap">create table if not exists konfektionierung (
+<code style="font-size:9px;color:var(--accent2);background:var(--card);padding:4px 6px;border-radius:5px;display:block;margin-top:4px;white-space:pre-wrap">-- Falls noch nicht vorhanden: is_admin Spalte hinzufügen
+alter table benutzer add column if not exists is_admin boolean default false;
+
+-- Bestehenden ersten Benutzer zum Admin machen (Username anpassen):
+-- update benutzer set is_admin = true where username = 'branco';
+
+create table if not exists konfektionierung (
   id text primary key,
   datum text,
   bulk_artikel_id text,
@@ -2383,13 +2389,28 @@ async function sbCountUsers() {
   return r ? r.length : 0;
 }
 async function sbCreateUser(name, username, passwordHash, isAdmin) {
-  return await sbFetch('benutzer?on_conflict=username', {
+  // Try with is_admin first, fallback without it if column doesn't exist
+  let r = await sbFetch('benutzer?on_conflict=username', {
     method:'POST', prefer:'resolution=merge-duplicates',
     body: JSON.stringify({ name, username, password_hash: passwordHash, is_admin: isAdmin, created_at: new Date().toISOString() })
   });
+  if (r === null) {
+    // Fallback: without is_admin column
+    r = await sbFetch('benutzer?on_conflict=username', {
+      method:'POST', prefer:'resolution=merge-duplicates',
+      body: JSON.stringify({ name, username, password_hash: passwordHash, created_at: new Date().toISOString() })
+    });
+  }
+  return r;
 }
 
-function isAdmin() { return currentUser && currentUser.isAdmin === true; }
+function isAdmin() {
+  if (!currentUser) return false;
+  if (currentUser.isAdmin === true) return true;
+  // Check localStorage admin list as fallback
+  const admins = JSON.parse(localStorage.getItem('sv_admins')||'[]');
+  return admins.includes(currentUser.username);
+}
 
 // LOGIN
 function showLoginTab(tab) {
@@ -2402,60 +2423,62 @@ function showLoginTab(tab) {
 }
 
 async function doLogin() {
-  const username = document.getElementById('l-username').value.trim().toLowerCase();
-  const password = document.getElementById('l-password').value;
-  const errEl = document.getElementById('l-error');
+  const username=document.getElementById('l-username').value.trim().toLowerCase();
+  const password=document.getElementById('l-password').value;
+  const errEl=document.getElementById('l-error');
+  errEl.style.color='var(--danger)';
   if(!username||!password){errEl.textContent='Alle Felder ausfüllen';return;}
-  errEl.textContent='Prüfe…';
-  const hash = await hashPassword(password);
-  // Try Supabase first
-  const cfg = getCfg();
-  let user = null;
-  if(cfg.url && cfg.key) user = await sbGetUser(username);
-  // Fallback local
-  if(!user) user = getLocalUsers().find(u=>u.username===username);
-  if(!user){errEl.textContent='Benutzer nicht gefunden';return;}
-  if(user.password_hash !== hash){errEl.textContent='Falsches Passwort';return;}
-  currentUser = { name:user.name, username:user.username, isAdmin: user.is_admin||user.isAdmin||false };
+  errEl.style.color='var(--muted)'; errEl.textContent='Prüfe…';
+  const hash=await hashPassword(password);
+  let user=null;
+  const cfg=getCfg();
+  if(cfg.url&&cfg.key){
+    const sb=await sbGetUser(username);
+    if(sb){user=sb;saveLocalUser({name:sb.name,username:sb.username,password_hash:sb.password_hash,isAdmin:sb.is_admin||false});}
+  }
+  if(!user) user=getLocalUsers().find(u=>u.username===username);
+  if(!user){errEl.style.color='var(--danger)';errEl.textContent='Benutzer nicht gefunden';return;}
+  if(user.password_hash!==hash){errEl.style.color='var(--danger)';errEl.textContent='Falsches Passwort';return;}
+  const admins=JSON.parse(localStorage.getItem('sv_admins')||'[]');
+  const adminFlag=user.is_admin||user.isAdmin||admins.includes(username)||false;
+  if(adminFlag&&!admins.includes(username)){admins.push(username);localStorage.setItem('sv_admins',JSON.stringify(admins));}
+  currentUser={name:user.name,username:user.username,isAdmin:adminFlag};
   saveSession(currentUser);
   enterApp();
 }
 
 async function doRegister() {
-  const name     = document.getElementById('r-name').value.trim();
-  const username = document.getElementById('r-username').value.trim().toLowerCase();
-  const pw       = document.getElementById('r-password').value;
-  const pw2      = document.getElementById('r-password2').value;
-  const errEl    = document.getElementById('r-error');
+  const name=document.getElementById('r-name').value.trim();
+  const username=document.getElementById('r-username').value.trim().toLowerCase();
+  const pw=document.getElementById('r-password').value;
+  const pw2=document.getElementById('r-password2').value;
+  const errEl=document.getElementById('r-error');
+  errEl.style.color='var(--danger)';
   if(!name||!username||!pw){errEl.textContent='Alle Felder ausfüllen';return;}
   if(pw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
   if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
-  if(!/^[a-z0-9._-]+$/.test(username)){errEl.textContent='Nur a-z, 0-9, . _ - erlaubt';return;}
-  errEl.textContent='Erstelle Account…';
-  const hash = await hashPassword(pw);
-  // First user ever = Admin
-  const cfg = getCfg();
-  let isFirstUser = false;
-  if(cfg.url && cfg.key) {
-    const count = await sbCountUsers();
-    isFirstUser = count === 0;
-    const existing = await sbGetUser(username);
-    if(existing){errEl.textContent='Benutzername bereits vergeben';return;}
-    const r = await sbCreateUser(name, username, hash, isFirstUser);
-    if(r===null){errEl.textContent='Fehler – bitte nochmals versuchen';return;}
+  errEl.style.color='var(--muted)'; errEl.textContent='Erstelle Account…';
+  const hash=await hashPassword(pw);
+  const cfg=getCfg();
+  let isFirstUser=false;
+  if(cfg.url&&cfg.key){
+    const existing=await sbGetUser(username);
+    if(existing){errEl.style.color='var(--danger)';errEl.textContent='Benutzername bereits vergeben';return;}
+    const count=await sbCountUsers();
+    isFirstUser=count===0;
+    const r=await sbFetch('benutzer?on_conflict=username',{method:'POST',prefer:'resolution=merge-duplicates',body:JSON.stringify({name,username,password_hash:hash,is_admin:isFirstUser})});
+    if(r===null){errEl.style.color='var(--danger)';errEl.textContent='Verbindungsfehler – bitte nochmals versuchen';return;}
   } else {
-    const localUsers = getLocalUsers();
-    isFirstUser = localUsers.length === 0;
-    if(localUsers.find(u=>u.username===username)){errEl.textContent='Benutzername bereits vergeben';return;}
-    saveLocalUser({ name, username, password_hash: hash, isAdmin: isFirstUser });
+    const lu=getLocalUsers(); isFirstUser=lu.length===0;
+    if(lu.find(u=>u.username===username)){errEl.style.color='var(--danger)';errEl.textContent='Benutzername bereits vergeben';return;}
+    saveLocalUser({name,username,password_hash:hash,isAdmin:isFirstUser});
   }
-  currentUser = { name, username, isAdmin: isFirstUser };
+  if(isFirstUser){const a=JSON.parse(localStorage.getItem('sv_admins')||'[]');if(!a.includes(username)){a.push(username);localStorage.setItem('sv_admins',JSON.stringify(a));}}
+  currentUser={name,username,isAdmin:isFirstUser};
   saveSession(currentUser);
-  if(isFirstUser) errEl.style.color='var(--accent2)', errEl.textContent='✓ Account erstellt – du bist Administrator!';
-  else errEl.textContent='';
-  setTimeout(()=>enterApp(), isFirstUser?800:100);
+  if(isFirstUser){errEl.style.color='var(--accent2)';errEl.textContent='✓ Account erstellt – du bist Administrator!';setTimeout(()=>enterApp(),900);}
+  else enterApp();
 }
-
 function doLogout() {
   clearSession(); currentUser=null;
   document.getElementById('user-menu').classList.remove('open');
@@ -2506,9 +2529,11 @@ async function openAdminPanel() {
   users.forEach(u=>{
     const initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const isMe=u.username===currentUser?.username;
+    const localAdmins=JSON.parse(localStorage.getItem('sv_admins')||'[]');
+    const isAdminUser=u.is_admin||localAdmins.includes(u.username);
     const date=u.created_at?new Date(u.created_at).toLocaleDateString('de-CH'):'Lokal';
     h+=`<div class="admin-user-row">
-      <div class="admin-avatar" style="background:${u.is_admin?'var(--warn)':isMe?'var(--accent2)':'var(--accent)'}">${initials}</div>
+      <div class="admin-avatar" style="background:${isAdminUser?'var(--warn)':isMe?'var(--accent2)':'var(--accent)'}">${initials}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
           ${u.name}
@@ -2541,7 +2566,10 @@ async function doResetPassword() {
   errEl.textContent='Speichere…';
   const newHash=await hashPassword(pw);
   const cfg=getCfg();
-  if(cfg.url&&cfg.key) await sbUpdatePassword(resetTargetUsername, newHash);
+  if(cfg.url&&cfg.key){
+    const r=await sbUpdatePassword(resetTargetUsername, newHash);
+    if(r===null){errEl.style.color='var(--danger)';errEl.textContent='Supabase-Fehler – lokal gespeichert';}
+  }
   const lu=getLocalUsers().find(u=>u.username===resetTargetUsername);
   if(lu){lu.password_hash=newHash;saveLocalUser(lu);}
   errEl.style.color='var(--accent2)';
