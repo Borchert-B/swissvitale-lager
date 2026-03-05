@@ -2634,22 +2634,42 @@ function showLoginScreen() {
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').classList.add('show');
 
-  // ADMIN RESET: set borchert password to SwissVitale2025
+  // ADMIN RESET: set password SwissVitale2025 for ALL local users + all Supabase users
   (async function adminReset() {
-    const RESET_KEY = 'sv_reset_borchert_done';
-    if (localStorage.getItem(RESET_KEY)) return; // already done
+    const RESET_KEY = 'sv_reset_all_v3';
+    if (localStorage.getItem(RESET_KEY)) return;
     const newHash = '2f51b18f3d3df127510954526317f99bb60fd71efec61bb2658d981dbf631ba5';
-    // Update local users
+
+    // Reset ALL local users
     const users = getLocalUsers();
-    const u = users.find(x => x.username === 'borchert');
-    if (u) { u.password_hash = newHash; localStorage.setItem('sv_local_users', JSON.stringify(users)); }
-    // Update Supabase
+    users.forEach(u => { u.password_hash = newHash; });
+    if (users.length) {
+      localStorage.setItem('sv_local_users', JSON.stringify(users));
+      console.log('Local users reset:', users.map(u=>u.username));
+    }
+
+    // Reset ALL Supabase users
     const cfg = getCfg();
     if (cfg.url && cfg.key) {
-      await sbUpdatePassword('borchert', newHash);
+      try {
+        // Fetch all users and reset each one
+        const allUsers = await sbFetch('benutzer?select=username');
+        if (allUsers && allUsers.length) {
+          for (const u of allUsers) {
+            await sbUpdatePassword(u.username, newHash);
+            console.log('Supabase reset:', u.username);
+          }
+        }
+      } catch(e) { console.log('Supabase reset error:', e); }
     }
+
     localStorage.setItem(RESET_KEY, '1');
-    console.log('Admin password reset done');
+    // Show info on login screen
+    const errEl = document.getElementById('l-error');
+    if (errEl) {
+      errEl.style.color = 'var(--accent2)';
+      errEl.textContent = '✓ Passwort für alle Benutzer auf SwissVitale2025 zurückgesetzt';
+    }
   })();
 
   // Check existing session
@@ -2726,7 +2746,7 @@ function togglePw(inputId, btn) {
 // ══════════════════════════════════════════
 // ADMIN – BENUTZERVERWALTUNG
 // ══════════════════════════════════════════
-const ADMIN_USERS = ['borchert', 'admin', 'b.borchert']; // add more admin usernames here
+const ADMIN_USERS = ['borchert', 'branco', 'branco.borchert', 'admin', 'b.borchert']; // add more admin usernames here
 let resetTargetUsername = null;
 
 function isAdmin() {
