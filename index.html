@@ -2428,17 +2428,33 @@ async function doLogin() {
   const errEl=document.getElementById('l-error');
   errEl.style.color='var(--danger)';
   if(!username||!password){errEl.textContent='Alle Felder ausfüllen';return;}
-  errEl.style.color='var(--muted)'; errEl.textContent='Prüfe…';
+  errEl.style.color='var(--muted)';
+  errEl.textContent='Prüfe…';
   const hash=await hashPassword(password);
-  let user=null;
-  const cfg=getCfg();
-  if(cfg.url&&cfg.key){
-    const sb=await sbGetUser(username);
-    if(sb){user=sb;saveLocalUser({name:sb.name,username:sb.username,password_hash:sb.password_hash,isAdmin:sb.is_admin||false});}
+
+  // IMMER lokal prüfen zuerst – kein Netzwerk
+  let user=getLocalUsers().find(u=>u.username===username);
+
+  if(!user){
+    // Nicht lokal – kurz in Supabase nachschauen (nur wenn konfiguriert)
+    const cfg=getCfg();
+    if(cfg.url&&cfg.key){
+      try {
+        const sb=await Promise.race([
+          sbGetUser(username),
+          new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),4000))
+        ]);
+        if(sb){
+          saveLocalUser({name:sb.name,username:sb.username,password_hash:sb.password_hash,isAdmin:sb.is_admin||false});
+          user=sb;
+        }
+      } catch(e){ /* Timeout oder Fehler – ignorieren */ }
+    }
   }
-  if(!user) user=getLocalUsers().find(u=>u.username===username);
+
   if(!user){errEl.style.color='var(--danger)';errEl.textContent='Benutzer nicht gefunden';return;}
   if(user.password_hash!==hash){errEl.style.color='var(--danger)';errEl.textContent='Falsches Passwort';return;}
+
   const admins=JSON.parse(localStorage.getItem('sv_admins')||'[]');
   const adminFlag=user.is_admin||user.isAdmin||admins.includes(username)||false;
   if(adminFlag&&!admins.includes(username)){admins.push(username);localStorage.setItem('sv_admins',JSON.stringify(admins));}
