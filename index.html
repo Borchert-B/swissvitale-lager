@@ -212,7 +212,7 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--text);font-fam
 <body>
 <div id="app">
   <div class="topbar">
-    <div class="topbar-logo">Swiss<span>Vitale</span></div>
+    <div class="topbar-logo">Swiss<span>Vitale</span> <span style="font-size:9px;color:var(--muted);font-family:var(--ff-mono);font-weight:400">v3</span></div>
     <div style="display:flex;align-items:center;gap:10px">
       <div class="sync-info"><div class="sync-dot"></div><span id="sync-time">Lokal</span></div>
       <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()">?</div>
@@ -2222,8 +2222,7 @@ async function saveCloudCfg() {
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
   <div class="login-logo">Swiss<span>Vitale</span></div>
-  <div class="login-sub">LAGERVERWALTUNG</div>
-  <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:-8px;font-family:monospace">v2.1</div>
+  <div class="login-sub">LAGERVERWALTUNG · v3</div>
   <div class="login-card">
     <div class="login-tabs">
       <button class="login-tab active" id="ltab-login" onclick="showLoginTab('login')">Anmelden</button>
@@ -2232,13 +2231,13 @@ async function saveCloudCfg() {
     <div id="lform-login">
       <div class="form-group">
         <label class="form-label">Benutzername</label>
-        <input class="form-input" id="l-username" placeholder="vorname.nachname" autocomplete="username" autocapitalize="none">
+        <input class="form-input" id="l-username" placeholder="branco" autocomplete="username" autocapitalize="none">
       </div>
       <div class="form-group">
         <label class="form-label">Passwort</label>
         <div class="pw-wrap">
           <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px">
-          <button type="button" class="pw-toggle" onclick="togglePw('l-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button type="button" class="pw-toggle" onclick="togglePw('l-password',this)" tabindex="-1">&#128065;</button>
         </div>
       </div>
       <button class="btn btn-primary" onclick="doLogin()" style="margin-top:4px">Anmelden</button>
@@ -2251,29 +2250,27 @@ async function saveCloudCfg() {
       </div>
       <div class="form-group">
         <label class="form-label">Benutzername</label>
-        <input class="form-input" id="r-username" placeholder="branco.borchert" autocapitalize="none">
+        <input class="form-input" id="r-username" placeholder="branco" autocapitalize="none">
       </div>
       <div class="form-group">
         <label class="form-label">Passwort</label>
         <div class="pw-wrap">
           <input class="form-input" id="r-password" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
-          <button type="button" class="pw-toggle" onclick="togglePw('r-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button type="button" class="pw-toggle" onclick="togglePw('r-password',this)" tabindex="-1">&#128065;</button>
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Passwort bestätigen</label>
         <div class="pw-wrap">
           <input class="form-input" id="r-password2" type="password" placeholder="••••••••" style="padding-right:44px">
-          <button type="button" class="pw-toggle" onclick="togglePw('r-password2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button type="button" class="pw-toggle" onclick="togglePw('r-password2',this)" tabindex="-1">&#128065;</button>
         </div>
       </div>
       <button class="btn btn-success" onclick="doRegister()" style="margin-top:4px">Account erstellen</button>
       <div class="login-error" id="r-error"></div>
     </div>
   </div>
-  <div style="font-size:11px;color:var(--muted);margin-top:20px;text-align:center;font-family:var(--ff-mono)">
-    Passwörter werden verschlüsselt gespeichert
-  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:20px;text-align:center;font-family:var(--ff-mono)">Passwörter werden verschlüsselt gespeichert</div>
 </div>
 
 <!-- USER MENU -->
@@ -2282,35 +2279,35 @@ async function saveCloudCfg() {
     <div id="um-name">—</div>
     <div class="user-menu-role" id="um-username">—</div>
   </div>
-  <div class="user-menu-item" id="um-admin-btn" style="display:none" onclick="openAdminPanel()">👥 Benutzerverwaltung</div>
-  <div class="user-menu-item" onclick="openChangePassword()">🔑 Passwort ändern</div>
-  <div class="user-menu-item danger" onclick="doLogout()">↩ Abmelden</div>
+  <div class="user-menu-item" id="um-admin-btn" style="display:none" onclick="openAdminPanel()">&#128101; Benutzerverwaltung</div>
+  <div class="user-menu-item" onclick="openChangePassword()">&#128273; Passwort ändern</div>
+  <div class="user-menu-item danger" onclick="doLogout()">&#8617; Abmelden</div>
 </div>
 
 <!-- CHANGE PASSWORD MODAL -->
 <div class="modal-backdrop" id="modal-pw" onclick="closeModal('modal-pw')">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
-    <div class="modal-title">🔑 Passwort ändern</div>
+    <div class="modal-title">&#128273; Passwort ändern</div>
     <div class="form-group">
       <label class="form-label">Aktuelles Passwort</label>
       <div class="pw-wrap">
         <input class="form-input" id="pw-old" type="password" placeholder="••••••••" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('pw-old',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="pw-toggle" onclick="togglePw('pw-old',this)" tabindex="-1">&#128065;</button>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">Neues Passwort</label>
       <div class="pw-wrap">
         <input class="form-input" id="pw-new" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('pw-new',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="pw-toggle" onclick="togglePw('pw-new',this)" tabindex="-1">&#128065;</button>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">Bestätigen</label>
       <div class="pw-wrap">
         <input class="form-input" id="pw-new2" type="password" placeholder="••••••••" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('pw-new2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="pw-toggle" onclick="togglePw('pw-new2',this)" tabindex="-1">&#128065;</button>
       </div>
     </div>
     <button class="btn btn-primary" onclick="doChangePassword()">Passwort speichern</button>
@@ -2322,8 +2319,8 @@ async function saveCloudCfg() {
 <div class="modal-backdrop" id="modal-admin" onclick="closeModal('modal-admin')">
   <div class="modal" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto">
     <div class="modal-handle"></div>
-    <div class="modal-title">👥 Benutzerverwaltung</div>
-    <div id="admin-user-list"></div>
+    <div class="modal-title">&#128101; Benutzerverwaltung</div>
+    <div id="admin-user-list"><div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Lade...</div></div>
   </div>
 </div>
 
@@ -2331,203 +2328,154 @@ async function saveCloudCfg() {
 <div class="modal-backdrop" id="modal-reset" onclick="closeModal('modal-reset')">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
-    <div class="modal-title">🔑 Passwort zurücksetzen</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Benutzer: <b id="reset-username-label">—</b></div>
+    <div class="modal-title">&#128273; Passwort zurücksetzen</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Benutzer: <b id="reset-uname">—</b></div>
     <div class="form-group">
       <label class="form-label">Neues Passwort</label>
       <div class="pw-wrap">
         <input class="form-input" id="reset-pw" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('reset-pw',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="pw-toggle" onclick="togglePw('reset-pw',this)" tabindex="-1">&#128065;</button>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">Bestätigen</label>
       <div class="pw-wrap">
         <input class="form-input" id="reset-pw2" type="password" placeholder="••••••••" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('reset-pw2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button type="button" class="pw-toggle" onclick="togglePw('reset-pw2',this)" tabindex="-1">&#128065;</button>
       </div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:2" onclick="doResetPassword()">Passwort setzen</button>
+      <button class="btn btn-primary" style="flex:2" onclick="doResetPassword()">Speichern</button>
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-reset')">Abbrechen</button>
     </div>
-    <div id="reset-error" class="login-error" style="margin-top:8px"></div>
+    <div class="login-error" id="reset-error" style="margin-top:8px"></div>
   </div>
 </div>
 
 <script>
 // ══════════════════════════════════════════
-// AUTH – NEU: Erster Benutzer = Admin
+// AUTH SYSTEM – SAUBER NEU
 // ══════════════════════════════════════════
-const AUTH_KEY = 'sv_auth_session';
-const LOCAL_USERS_KEY = 'sv_local_users';
+const AUTH_KEY = 'sv_session';
+const LOCAL_USERS_KEY = 'sv_users';
 let currentUser = null;
 
-// COOKIE HELPERS – shared between Safari and PWA
-function setCookie(n,v,days=365){const d=new Date();d.setTime(d.getTime()+days*864e5);document.cookie=n+'='+encodeURIComponent(v)+';expires='+d.toUTCString()+';path=/;SameSite=Lax';}
-function getCookie(n){const v=document.cookie.split(';').find(c=>c.trim().startsWith(n+'='));return v?decodeURIComponent(v.trim().slice(n.length+1)):null;}
-function syncFromCookies(){
-  ['sv_local_users','sv_admins','sv_supabase_cfg'].forEach(k=>{
-    const c=getCookie(k); if(c&&!localStorage.getItem(k)) localStorage.setItem(k,c);
-  });
-  const s=getCookie(AUTH_KEY); if(s&&!localStorage.getItem(AUTH_KEY)) localStorage.setItem(AUTH_KEY,s);
-}
-
+// Password hashing
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw + 'sv_salt_2025'));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-function loadSession(){
-  try{const s=localStorage.getItem(AUTH_KEY);if(s)return JSON.parse(s);}catch(e){}
-  try{const c=getCookie(AUTH_KEY);if(c)return JSON.parse(c);}catch(e){}
-  return null;
-}
-function saveSession(u){
-  const v=JSON.stringify(u);
-  localStorage.setItem(AUTH_KEY,v);
-  setCookie(AUTH_KEY,v);
-  setCookie('sv_local_users',localStorage.getItem('sv_local_users')||'[]');
-  setCookie('sv_admins',localStorage.getItem('sv_admins')||'[]');
-}
-function clearSession(){localStorage.removeItem(AUTH_KEY);setCookie(AUTH_KEY,'',0);}
+// Session
+function loadSession() { try { const s=localStorage.getItem(AUTH_KEY); return s?JSON.parse(s):null; } catch(e){return null;} }
+function saveSession(u) { localStorage.setItem(AUTH_KEY, JSON.stringify(u)); }
+function clearSession() { localStorage.removeItem(AUTH_KEY); }
 
-function getLocalUsers() {
-  try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY)||'[]'); } catch(e) { return []; }
-}
-function saveLocalUser(u) {
-  const users = getLocalUsers();
-  const idx = users.findIndex(x=>x.username===u.username);
-  if(idx>=0) users[idx]=u; else users.push(u);
-  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
-}
+// Local users
+function getUsers() { try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY)||'[]'); } catch(e){return[];} }
+function saveUser(u) { const a=getUsers(); const i=a.findIndex(x=>x.username===u.username); if(i>=0)a[i]=u;else a.push(u); localStorage.setItem(LOCAL_USERS_KEY,JSON.stringify(a)); }
 
 // Supabase user helpers
 async function sbGetUser(username) {
-  const r = await sbFetch('benutzer?username=eq.' + encodeURIComponent(username) + '&select=*');
-  return r && r.length ? r[0] : null;
+  const r = await sbFetch('benutzer?username=eq.'+encodeURIComponent(username)+'&select=*');
+  return r&&r.length?r[0]:null;
 }
 async function sbGetAllUsers() {
-  return await sbFetch('benutzer?select=id,name,username,is_admin,created_at&order=created_at.asc') || [];
+  return await sbFetch('benutzer?select=name,username,is_admin,created_at&order=created_at.asc')||[];
 }
-async function sbCountUsers() {
-  const r = await sbFetch('benutzer?select=id');
-  return r ? r.length : 0;
-}
-async function sbCreateUser(name, username, passwordHash, isAdmin) {
-  // Try with is_admin first, fallback without it if column doesn't exist
-  let r = await sbFetch('benutzer?on_conflict=username', {
+async function sbSaveUser(name, username, hash, isAdmin) {
+  return await sbFetch('benutzer?on_conflict=username', {
     method:'POST', prefer:'resolution=merge-duplicates',
-    body: JSON.stringify({ name, username, password_hash: passwordHash, is_admin: isAdmin, created_at: new Date().toISOString() })
+    body: JSON.stringify({name, username, password_hash:hash, is_admin:isAdmin})
   });
-  if (r === null) {
-    // Fallback: without is_admin column
-    r = await sbFetch('benutzer?on_conflict=username', {
-      method:'POST', prefer:'resolution=merge-duplicates',
-      body: JSON.stringify({ name, username, password_hash: passwordHash, created_at: new Date().toISOString() })
-    });
-  }
-  return r;
+}
+async function sbUpdatePw(username, hash) {
+  return await sbFetch('benutzer?username=eq.'+encodeURIComponent(username), {
+    method:'PATCH', body: JSON.stringify({password_hash:hash})
+  });
 }
 
-function isAdmin() {
-  if (!currentUser) return false;
-  if (currentUser.isAdmin === true) return true;
-  // Check localStorage admin list as fallback
-  const admins = JSON.parse(localStorage.getItem('sv_admins')||'[]');
-  return admins.includes(currentUser.username);
+function isAdmin() { return currentUser&&currentUser.isAdmin; }
+
+// UI helpers
+function showLoginTab(tab) {
+  document.getElementById('lform-login').style.display=tab==='login'?'block':'none';
+  document.getElementById('lform-register').style.display=tab==='register'?'block':'none';
+  document.getElementById('ltab-login').classList.toggle('active',tab==='login');
+  document.getElementById('ltab-register').classList.toggle('active',tab==='register');
+  document.getElementById('l-error').textContent='';
+  document.getElementById('r-error').textContent='';
+}
+
+const EYE='&#128065;';
+const EYEOFF='&#128065;&#824;';
+function togglePw(id,btn){
+  const el=document.getElementById(id);
+  const show=el.type==='password';
+  el.type=show?'text':'password';
+  btn.style.opacity=show?'1':'0.4';
 }
 
 // LOGIN
-function showLoginTab(tab) {
-  document.getElementById('lform-login').style.display = tab==='login'?'block':'none';
-  document.getElementById('lform-register').style.display = tab==='register'?'block':'none';
-  document.getElementById('ltab-login').classList.toggle('active', tab==='login');
-  document.getElementById('ltab-register').classList.toggle('active', tab==='register');
-  document.getElementById('l-error').textContent = '';
-  document.getElementById('r-error').textContent = '';
-}
-
 async function doLogin() {
   const username=document.getElementById('l-username').value.trim().toLowerCase();
   const password=document.getElementById('l-password').value;
   const errEl=document.getElementById('l-error');
-  errEl.style.color='var(--danger)';
   if(!username||!password){errEl.textContent='Alle Felder ausfüllen';return;}
-  errEl.style.color='var(--muted)';
   errEl.textContent='Prüfe…';
   const hash=await hashPassword(password);
 
-  // IMMER lokal prüfen zuerst – kein Netzwerk
-  let user=getLocalUsers().find(u=>u.username===username);
-
-  if(!user){
-    // Nicht lokal – kurz in Supabase nachschauen (nur wenn konfiguriert)
-    const cfg=getCfg();
-    if(cfg.url&&cfg.key){
-      try {
-        const sb=await Promise.race([
-          sbGetUser(username),
-          new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),4000))
-        ]);
-        if(sb){
-          saveLocalUser({name:sb.name,username:sb.username,password_hash:sb.password_hash,isAdmin:sb.is_admin||false});
-          user=sb;
-        }
-      } catch(e){ /* Timeout oder Fehler – ignorieren */ }
-    }
+  // Supabase zuerst
+  let user=null;
+  const sbUser=await sbGetUser(username);
+  if(sbUser){
+    user=sbUser;
+    saveUser({name:sbUser.name,username:sbUser.username,password_hash:sbUser.password_hash,isAdmin:sbUser.is_admin||false});
   }
+  // Lokal als Fallback
+  if(!user) user=getUsers().find(u=>u.username===username);
 
-  if(!user){errEl.style.color='var(--danger)';errEl.textContent='Benutzer nicht gefunden';return;}
-  if(user.password_hash!==hash){errEl.style.color='var(--danger)';errEl.textContent='Falsches Passwort';return;}
+  if(!user){errEl.textContent='Benutzer nicht gefunden';return;}
+  if(user.password_hash!==hash){errEl.textContent='Falsches Passwort';return;}
 
-  const admins=JSON.parse(localStorage.getItem('sv_admins')||'[]');
-  const adminFlag=user.is_admin||user.isAdmin||admins.includes(username)||false;
-  if(adminFlag&&!admins.includes(username)){admins.push(username);localStorage.setItem('sv_admins',JSON.stringify(admins));}
+  const adminFlag=user.is_admin||user.isAdmin||false;
   currentUser={name:user.name,username:user.username,isAdmin:adminFlag};
   saveSession(currentUser);
   enterApp();
 }
 
+// REGISTER
 async function doRegister() {
   const name=document.getElementById('r-name').value.trim();
   const username=document.getElementById('r-username').value.trim().toLowerCase();
   const pw=document.getElementById('r-password').value;
   const pw2=document.getElementById('r-password2').value;
   const errEl=document.getElementById('r-error');
-  errEl.style.color='var(--danger)';
   if(!name||!username||!pw){errEl.textContent='Alle Felder ausfüllen';return;}
   if(pw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
   if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
 
   const hash=await hashPassword(pw);
 
-  // Lokal prüfen und speichern
-  const localUsers=getLocalUsers();
-  if(localUsers.find(u=>u.username===username)){
-    errEl.style.color='var(--danger)';
-    errEl.textContent='Benutzername bereits vergeben';return;
-  }
-  const isFirstUser=localUsers.length===0;
-  saveLocalUser({name,username,password_hash:hash,isAdmin:isFirstUser});
-  if(isFirstUser){
-    const a=JSON.parse(localStorage.getItem('sv_admins')||'[]');
-    if(!a.includes(username)){a.push(username);localStorage.setItem('sv_admins',JSON.stringify(a));}
-  }
-  currentUser={name,username,isAdmin:isFirstUser};
+  // Ist erster Benutzer?
+  const sbUsers=await sbGetAllUsers();
+  const localUsers=getUsers();
+  const isFirst=sbUsers.length===0&&localUsers.length===0;
+
+  // Prüfe ob Benutzername vergeben
+  const existing=sbUsers.find(u=>u.username===username)||localUsers.find(u=>u.username===username);
+  if(existing){errEl.textContent='Benutzername bereits vergeben';return;}
+
+  // Lokal speichern (sofort)
+  saveUser({name,username,password_hash:hash,isAdmin:isFirst});
+
+  // Supabase (Hintergrund, non-blocking)
+  sbSaveUser(name,username,hash,isFirst).catch(()=>{});
+
+  currentUser={name,username,isAdmin:isFirst};
   saveSession(currentUser);
 
-  // Supabase NUR wenn konfiguriert – feuern und vergessen, NICHT warten
-  const cfg=getCfg();
-  if(cfg.url&&cfg.key){
-    sbFetch('benutzer?on_conflict=username',{
-      method:'POST',prefer:'resolution=merge-duplicates',
-      body:JSON.stringify({name,username,password_hash:hash,is_admin:isFirstUser})
-    }).catch(()=>{});  // Fehler ignorieren
-  }
-
-  // Sofort weiter – kein await, kein Warten
-  if(isFirstUser){
+  if(isFirst){
     errEl.style.color='var(--accent2)';
     errEl.textContent='✓ Account erstellt – du bist Administrator!';
     setTimeout(()=>enterApp(),800);
@@ -2535,16 +2483,19 @@ async function doRegister() {
     enterApp();
   }
 }
+
+// LOGOUT
 function doLogout() {
   clearSession(); currentUser=null;
   document.getElementById('user-menu').classList.remove('open');
-  showLoginScreen();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').classList.add('show');
 }
 
 // CHANGE PASSWORD
 function openChangePassword() {
   document.getElementById('user-menu').classList.remove('open');
-  ['pw-old','pw-new','pw-new2'].forEach(id=>{const el=document.getElementById(id);el.value='';el.type='password';});
+  ['pw-old','pw-new','pw-new2'].forEach(id=>{document.getElementById(id).value='';document.getElementById(id).type='password';});
   document.getElementById('pw-error').textContent='';
   document.getElementById('modal-pw').classList.add('open');
 }
@@ -2556,59 +2507,46 @@ async function doChangePassword() {
   if(!oldPw||!newPw){errEl.textContent='Alle Felder ausfüllen';return;}
   if(newPw.length<6){errEl.textContent='Min. 6 Zeichen';return;}
   if(newPw!==newPw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
-  const oldHash=await hashPassword(oldPw), newHash=await hashPassword(newPw);
-  const cfg=getCfg();
-  let user=null;
-  if(cfg.url&&cfg.key) user=await sbGetUser(currentUser.username);
-  if(!user) user=getLocalUsers().find(u=>u.username===currentUser.username);
+  const oldHash=await hashPassword(oldPw);
+  const newHash=await hashPassword(newPw);
+  const user=await sbGetUser(currentUser.username)||getUsers().find(u=>u.username===currentUser.username);
   if(!user||user.password_hash!==oldHash){errEl.textContent='Aktuelles Passwort falsch';return;}
-  if(cfg.url&&cfg.key) await sbUpdatePassword(currentUser.username, newHash);
-  const lu=getLocalUsers().find(u=>u.username===currentUser.username);
-  if(lu){lu.password_hash=newHash;saveLocalUser(lu);}
-  errEl.style.color='var(--accent2)';errEl.textContent='✓ Passwort gespeichert';
+  await sbUpdatePw(currentUser.username,newHash);
+  const lu=getUsers().find(u=>u.username===currentUser.username);
+  if(lu){lu.password_hash=newHash;saveUser(lu);}
+  errEl.style.color='var(--accent2)';
+  errEl.textContent='✓ Passwort gespeichert';
   setTimeout(()=>closeModal('modal-pw'),1200);
 }
 
-// ADMIN
+// ADMIN PANEL
 async function openAdminPanel() {
   document.getElementById('user-menu').classList.remove('open');
   document.getElementById('modal-admin').classList.add('open');
-  document.getElementById('admin-user-list').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Lade…</div>';
-  // Load from Supabase
-  const cfg=getCfg();
-  let users=[];
-  if(cfg.url&&cfg.key) users=await sbGetAllUsers();
-  // Merge local
-  getLocalUsers().forEach(lu=>{if(!users.find(u=>u.username===lu.username)) users.push({name:lu.name,username:lu.username,is_admin:lu.isAdmin,created_at:null});});
-  if(!users.length){document.getElementById('admin-user-list').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Keine Benutzer gefunden</div>';return;}
-  let h='';
-  users.forEach(u=>{
-    const initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const el=document.getElementById('admin-user-list');
+  el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Lade...</div>';
+  let users=await sbGetAllUsers();
+  getUsers().forEach(lu=>{if(!users.find(u=>u.username===lu.username))users.push({name:lu.name,username:lu.username,is_admin:lu.isAdmin,created_at:null,local:true});});
+  if(!users.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">Keine Benutzer gefunden</div>';return;}
+  el.innerHTML=users.map(u=>{
+    const ini=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const isMe=u.username===currentUser?.username;
-    const localAdmins=JSON.parse(localStorage.getItem('sv_admins')||'[]');
-    const isAdminUser=u.is_admin||localAdmins.includes(u.username);
     const date=u.created_at?new Date(u.created_at).toLocaleDateString('de-CH'):'Lokal';
-    h+=`<div class="admin-user-row">
-      <div class="admin-avatar" style="background:${isAdminUser?'var(--warn)':isMe?'var(--accent2)':'var(--accent)'}">${initials}</div>
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:32px;height:32px;border-radius:50%;background:${u.is_admin?'var(--warn)':'var(--accent)'};display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);font-size:12px;font-weight:800;color:#fff;flex-shrink:0">${ini}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-          ${u.name}
-          ${u.is_admin?'<span class="admin-badge" style="background:var(--warn)">ADMIN</span>':''}
-          ${isMe?'<span class="admin-badge" style="background:var(--accent2)">ICH</span>':''}
-        </div>
+        <div style="font-size:13px;font-weight:500">${u.name} ${u.is_admin?'<span style="font-size:9px;background:var(--warn);color:#fff;padding:2px 5px;border-radius:4px;margin-left:4px">ADMIN</span>':''} ${isMe?'<span style="font-size:9px;background:var(--accent2);color:#fff;padding:2px 5px;border-radius:4px;margin-left:4px">ICH</span>':''}</div>
         <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px">@${u.username} · ${date}</div>
       </div>
-      ${!isMe?`<button class="btn btn-outline btn-sm" onclick="openResetPw('${u.username}')">🔑 Reset</button>`:''}
-    </div>`;
-  });
-  document.getElementById('admin-user-list').innerHTML=h;
+      ${!isMe?`<button class="btn btn-outline btn-sm" onclick="openResetPw('${u.username}')">&#128273; Reset</button>`:''}</div>`;
+  }).join('');
 }
 
-let resetTargetUsername=null;
+let _resetTarget=null;
 function openResetPw(username) {
-  resetTargetUsername=username;
-  document.getElementById('reset-username-label').textContent=username;
-  ['reset-pw','reset-pw2'].forEach(id=>{const el=document.getElementById(id);el.value='';el.type='password';});
+  _resetTarget=username;
+  document.getElementById('reset-uname').textContent=username;
+  ['reset-pw','reset-pw2'].forEach(id=>{document.getElementById(id).value='';document.getElementById(id).type='password';});
   document.getElementById('reset-error').textContent='';
   closeModal('modal-admin');
   document.getElementById('modal-reset').classList.add('open');
@@ -2619,67 +2557,41 @@ async function doResetPassword() {
   const errEl=document.getElementById('reset-error');
   if(!pw||pw.length<6){errEl.textContent='Min. 6 Zeichen';return;}
   if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
-  errEl.textContent='Speichere…';
-  const newHash=await hashPassword(pw);
-  const cfg=getCfg();
-  if(cfg.url&&cfg.key){
-    const r=await sbUpdatePassword(resetTargetUsername, newHash);
-    if(r===null){errEl.style.color='var(--danger)';errEl.textContent='Supabase-Fehler – lokal gespeichert';}
-  }
-  const lu=getLocalUsers().find(u=>u.username===resetTargetUsername);
-  if(lu){lu.password_hash=newHash;saveLocalUser(lu);}
+  const hash=await hashPassword(pw);
+  await sbUpdatePw(_resetTarget,hash);
+  const lu=getUsers().find(u=>u.username===_resetTarget);
+  if(lu){lu.password_hash=hash;saveUser(lu);}
   errEl.style.color='var(--accent2)';
-  errEl.textContent=`✓ Passwort für @${resetTargetUsername} gesetzt`;
-  showToast(`✓ Passwort für ${resetTargetUsername} zurückgesetzt`,'success');
+  errEl.textContent='✓ Passwort gesetzt';
+  showToast('✓ Passwort für '+_resetTarget+' zurückgesetzt','success');
   setTimeout(()=>closeModal('modal-reset'),1500);
 }
 
-// PASSWORD TOGGLE
-const EYE_ON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-const EYE_OFF=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
-function togglePw(id,btn){const el=document.getElementById(id);const show=el.type==='password';el.type=show?'text':'password';btn.innerHTML=show?EYE_OFF:EYE_ON;btn.style.color=show?'var(--accent)':'var(--muted)';}
-
-// ENTER / LOGOUT
+// ENTER APP
 function enterApp() {
   document.getElementById('login-screen').classList.remove('show');
   document.getElementById('app').style.display='flex';
-  const initials=currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  document.getElementById('user-avatar').textContent=initials;
+  const ini=currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent=ini;
   document.getElementById('um-name').textContent=currentUser.name;
   document.getElementById('um-username').textContent='@'+currentUser.username+(currentUser.isAdmin?' · Admin':'');
-  const adminBtn=document.getElementById('um-admin-btn');
-  if(adminBtn) adminBtn.style.display=isAdmin()?'flex':'none';
+  const btn=document.getElementById('um-admin-btn');
+  if(btn) btn.style.display=isAdmin()?'flex':'none';
   populateSelects();
   renderDashboard();
   document.getElementById('sync-time').textContent=new Date().toLocaleDateString('de-CH');
-  setTimeout(updateBackupReminder, 500);
-  // Auto-connect to Supabase (credentials hardcoded)
+  setTimeout(updateBackupReminder,500);
+  // Auto-connect Supabase
   setCloudStatus('syncing','Verbinde…');
   setTimeout(()=>pullFromCloud(),800);
 }
-function showLoginScreen() {
-  document.getElementById('login-screen').classList.add('show');
-  document.getElementById('app').style.display='none';
-}
-function toggleUserMenu(){document.getElementById('user-menu').classList.toggle('open');}
-document.addEventListener('click',()=>document.getElementById('user-menu').classList.remove('open'));
 
 // BOOT
 (function boot(){
-  syncFromCookies();
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').classList.add('show');
-  const session=loadSession();
-  if(session){currentUser=session;enterApp();}
-  // Auto-connect Supabase even before login (so status shows correctly)
-  setTimeout(async()=>{
-    try{
-      const r=await fetch('https://kwfkgfswjicmswoeubqv.supabase.co/rest/v1/benutzer?select=id&limit=1',{
-        headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3ZmtnZnN3amljbXN3b2V1YnF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NTkyNDksImV4cCI6MjA4ODEzNTI0OX0.8e6BrGM_srbowtmHYl4ndFYy4X0CEtSMWefkgepLu0M','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3ZmtnZnN3amljbXN3b2V1YnF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NTkyNDksImV4cCI6MjA4ODEzNTI0OX0.8e6BrGM_srbowtmHYl4ndFYy4X0CEtSMWefkgepLu0M'}
-      });
-      if(r.ok) setCloudStatus('ok','Verbunden');
-    }catch(e){}
-  },1000);
+  const s=loadSession();
+  if(s){currentUser=s;enterApp();}
 })();
 </script>
 
