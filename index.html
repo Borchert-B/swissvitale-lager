@@ -2202,6 +2202,7 @@ async function saveCloudCfg() {
     document.getElementById('cfg-test-result').textContent = '✓ Verbindung erfolgreich!';
     setCloudStatus('ok', 'Verbunden');
     saveCfg({ url, key, connected: true });
+    setCookie('sv_supabase_cfg', JSON.stringify({url,key,connected:true}));
     showToast('✓ Supabase verbunden','success');
     setTimeout(() => pullFromCloud(), 500);
   } else {
@@ -2637,8 +2638,54 @@ function showLoginScreen() {
 function toggleUserMenu(){document.getElementById('user-menu').classList.toggle('open');}
 document.addEventListener('click',()=>document.getElementById('user-menu').classList.remove('open'));
 
+// COOKIE HELPERS – shared between Safari and PWA
+function setCookie(name,val,days=365){
+  const d=new Date();d.setTime(d.getTime()+days*864e5);
+  document.cookie=name+'='+encodeURIComponent(val)+';expires='+d.toUTCString()+';path=/;SameSite=Lax';
+}
+function getCookie(name){
+  const v=document.cookie.split(';').find(c=>c.trim().startsWith(name+'='));
+  return v?decodeURIComponent(v.trim().slice(name.length+1)):null;
+}
+
+// Override saveSession/loadSession/clearSession to use BOTH localStorage AND cookie
+const _origSaveSession=saveSession;
+window.saveSession=function(u){
+  _origSaveSession(u);
+  setCookie('sv_session',JSON.stringify(u));
+  // Also save local users to cookie for PWA
+  setCookie('sv_local_users',localStorage.getItem('sv_local_users')||'[]');
+  setCookie('sv_admins',localStorage.getItem('sv_admins')||'[]');
+  setCookie('sv_supabase_cfg',localStorage.getItem('sv_supabase_cfg')||'{}');
+};
+const _origClearSession=clearSession;
+window.clearSession=function(){
+  _origClearSession();
+  setCookie('sv_session','',0);
+};
+const _origLoadSession=loadSession;
+window.loadSession=function(){
+  let s=_origLoadSession();
+  if(s) return s;
+  // Try cookie fallback (for PWA)
+  const c=getCookie('sv_session');
+  if(c){try{return JSON.parse(c);}catch(e){}}
+  return null;
+};
+
+// Sync cookie data to localStorage (for PWA context)
+function syncFromCookies(){
+  const lu=getCookie('sv_local_users');
+  if(lu&&!localStorage.getItem('sv_local_users')) localStorage.setItem('sv_local_users',lu);
+  const adm=getCookie('sv_admins');
+  if(adm&&!localStorage.getItem('sv_admins')) localStorage.setItem('sv_admins',adm);
+  const cfg=getCookie('sv_supabase_cfg');
+  if(cfg&&!localStorage.getItem('sv_supabase_cfg')) localStorage.setItem('sv_supabase_cfg',cfg);
+}
+
 // BOOT
 (function boot(){
+  syncFromCookies();
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').classList.add('show');
   const session=loadSession();
