@@ -1,0 +1,2520 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SV Lager">
+<meta name="theme-color" content="#0a1628">
+<title>Swiss Vitale – Lagerverwaltung</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root{--bg:#0a1628;--surface:#111e35;--card:#172440;--border:#1e3050;--accent:#3d9cf0;--accent2:#00e5a0;--warn:#f5a623;--danger:#f04040;--text:#e8eef8;--muted:#6b8ab0;--ff-display:'Syne',sans-serif;--ff-body:'DM Sans',sans-serif;--ff-mono:'DM Mono',monospace;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;width:100%;background:var(--bg);color:var(--text);font-family:var(--ff-body);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+#app{display:flex;flex-direction:column;height:100dvh;padding-top:var(--safe-top)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.topbar-logo{font-family:var(--ff-display);font-size:16px;font-weight:800;letter-spacing:-.3px}
+.topbar-logo span{color:var(--accent)}
+.sync-info{font-size:10px;font-family:var(--ff-mono);color:var(--muted);display:flex;align-items:center;gap:4px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:0 0 calc(var(--safe-bot) + 72px)}
+.content::-webkit-scrollbar{display:none}
+.tabs{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding-bottom:var(--safe-bot);z-index:100}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 1px 4px;font-size:7.5px;font-family:var(--ff-body);color:var(--muted);cursor:pointer;border:none;background:none;transition:color .2s;gap:3px}
+.tab.active{color:var(--accent)}
+.tab svg{width:20px;height:20px}
+.screen{display:none;padding:14px}
+.screen.active{display:block}
+.sec-hdr{font-family:var(--ff-display);font-size:20px;font-weight:800;margin-bottom:14px;letter-spacing:-.5px}
+.sec-hdr span{color:var(--accent)}
+.search-sort-bar{display:flex;gap:8px;margin-bottom:10px;align-items:center}
+.search-wrap{position:relative;flex:1}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none}
+.search-input{width:100%;padding:10px 10px 10px 34px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--ff-body);font-size:14px}
+.search-input:focus{outline:none;border-color:var(--accent)}
+.sort-btn{padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:11px;font-family:var(--ff-mono);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.sort-btn.active{color:var(--accent);border-color:var(--accent)}
+.filter-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{padding:5px 12px;border-radius:20px;font-size:11px;font-family:var(--ff-mono);cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);white-space:nowrap;transition:all .15s}
+.filter-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
+.card-title{font-family:var(--ff-display);font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.kpi-label{font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-bottom:3px}
+.kpi-value{font-family:var(--ff-display);font-size:20px;font-weight:800;letter-spacing:-.5px}
+.kpi-value.accent{color:var(--accent)}.kpi-value.green{color:var(--accent2)}.kpi-value.warn{color:var(--warn)}.kpi-value.danger{color:var(--danger)}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-family:var(--ff-mono);gap:4px}
+.bg{background:rgba(0,229,160,.15);color:var(--accent2)}.bw{background:rgba(245,166,35,.15);color:var(--warn)}.bd{background:rgba(240,64,64,.15);color:var(--danger)}.bb{background:rgba(61,156,240,.15);color:var(--accent)}
+.art-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:10px;cursor:pointer}
+.art-row:last-child{border-bottom:none}
+.art-icon{width:36px;height:36px;border-radius:9px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.art-info{flex:1;min-width:0}
+.art-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.art-meta{font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px}
+.art-right{text-align:right;flex-shrink:0}
+.art-qty{font-family:var(--ff-display);font-size:15px;font-weight:700}
+.art-unit{font-size:9px;color:var(--muted);font-family:var(--ff-mono)}
+/* SCANNER FULLSCREEN */
+#scanner-fs{display:none;position:fixed;inset:0;z-index:500;background:#000;flex-direction:column}
+#scanner-fs.open{display:flex}
+#cam-vid{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+#cam-cvs{position:absolute;inset:0;width:100%;height:100%;display:none}
+.cam-overlay{position:absolute;inset:0;pointer-events:none}
+.cam-guides{position:absolute;top:12%;left:5%;right:5%;bottom:22%}
+.cam-corner{position:absolute;width:24px;height:24px;border-color:var(--accent2);border-style:solid}
+.cam-corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 4px}
+.cam-corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.cam-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.cam-corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.cam-scan-line{position:absolute;left:5%;right:5%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanfull 2.5s ease-in-out infinite;top:12%}
+@keyframes scanfull{0%{top:12%;opacity:1}50%{top:78%;opacity:.6}100%{top:12%;opacity:1}}
+.cam-topbar{position:absolute;top:0;left:0;right:0;padding:calc(var(--safe-top) + 10px) 16px 12px;background:linear-gradient(to bottom,rgba(0,0,0,.75),transparent);display:flex;align-items:center;justify-content:space-between;z-index:10}
+.cam-title{font-family:var(--ff-display);font-size:15px;font-weight:800;color:#fff}
+.cam-close{background:rgba(255,255,255,.15);border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff}
+.cam-bottom{position:absolute;bottom:0;left:0;right:0;padding:16px 20px calc(var(--safe-bot) + 16px);background:linear-gradient(to top,rgba(0,0,0,.8),transparent);z-index:10;text-align:center}
+.cam-hint{color:rgba(255,255,255,.7);font-size:11px;margin-bottom:14px;font-family:var(--ff-mono);line-height:1.5}
+.cam-shutter{width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.9);border:4px solid #fff;display:flex;align-items:center;justify-content:center;margin:0 auto;cursor:pointer;transition:transform .15s}
+.cam-shutter:active{transform:scale(.9)}
+.cam-shutter-inner{width:54px;height:54px;border-radius:50%;background:var(--accent)}
+.cam-processing{display:none;position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.cam-processing.show{display:flex}
+.ocr-spinner{width:44px;height:44px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ocr-prog{font-family:var(--ff-mono);font-size:13px;color:rgba(255,255,255,.8)}
+.cam-result{display:none;position:absolute;bottom:0;left:0;right:0;z-index:30;background:var(--surface);border-radius:20px 20px 0 0;border-top:1px solid var(--border);padding:16px 18px calc(var(--safe-bot)+16px);animation:slideUp .3s ease}
+.cam-result.show{display:block}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.result-handle{width:36px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px}
+.result-title{font-family:var(--ff-display);font-size:16px;font-weight:800;margin-bottom:12px}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.rf{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px}
+.rf-l{font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-bottom:3px}
+.rf-v{font-family:var(--ff-mono);font-size:13px;color:var(--accent2)}
+.rf-v.miss{color:var(--warn)}
+.result-raw{font-family:var(--ff-mono);font-size:10px;color:var(--muted);margin-bottom:12px;max-height:55px;overflow:auto;line-height:1.4;background:var(--card);padding:8px;border-radius:8px;border:1px solid var(--border)}
+.result-btns{display:flex;gap:8px}
+/* FORMS */
+.form-group{margin-bottom:12px}
+.form-label{font-size:10px;color:var(--muted);font-family:var(--ff-mono);text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:5px}
+.form-input,.form-select{width:100%;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--ff-body);font-size:14px;-webkit-appearance:none;transition:border-color .2s}
+.form-input:focus,.form-select:focus{outline:none;border-color:var(--accent)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:13px;border-radius:11px;border:none;font-family:var(--ff-display);font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s}
+.btn:active{opacity:.8;transform:scale(.98)}
+.btn-primary{background:var(--accent);color:#fff}.btn-success{background:var(--accent2);color:#0a1628}.btn-danger{background:var(--danger);color:#fff}.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-sm{width:auto;padding:8px 14px;font-size:12px;border-radius:8px}
+.scan-open-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:2px dashed var(--accent);background:rgba(61,156,240,.08);color:var(--accent);font-family:var(--ff-display);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:14px}
+.status-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:12px}
+.inv-row{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);gap:8px}
+.inv-row:last-child{border-bottom:none}
+.inv-input{width:76px;padding:7px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--ff-mono);font-size:13px;text-align:center;flex-shrink:0}
+.inv-input:focus{outline:none;border-color:var(--accent)}
+.dp{color:var(--warn);font-family:var(--ff-mono);font-size:12px}.dn{color:var(--danger);font-family:var(--ff-mono);font-size:12px}.dz{color:var(--accent2);font-family:var(--ff-mono);font-size:12px}
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-end;backdrop-filter:blur(4px)}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:18px 18px calc(var(--safe-bot)+18px);width:100%;animation:slideUp .3s ease;max-height:85vh;overflow-y:auto}
+.modal-handle{width:38px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 14px}
+.modal-title{font-family:var(--ff-display);font-size:17px;font-weight:800;margin-bottom:14px}
+.export-banner{background:linear-gradient(135deg,var(--card),var(--surface));border:1px solid var(--accent);border-radius:13px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.toast{position:fixed;top:calc(var(--safe-top)+56px);left:50%;transform:translateX(-50%) translateY(-80px);background:var(--card);border:1px solid var(--accent);border-radius:10px;padding:9px 16px;font-size:12px;font-family:var(--ff-mono);z-index:999;transition:transform .3s;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}.toast.success{border-color:var(--accent2);color:var(--accent2)}.toast.error{border-color:var(--danger);color:var(--danger)}
+
+/* CLOUD CONFIG */
+.cloud-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;gap:10px}
+.cloud-status{display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--ff-mono)}
+.cloud-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.cloud-dot.ok{background:var(--accent2)}
+.cloud-dot.syncing{background:var(--warn);animation:pulse 1s infinite}
+.cloud-dot.error{background:var(--danger)}
+.cloud-dot.offline{background:var(--muted)}
+.cloud-cfg-btn{background:none;border:1px solid var(--border);border-radius:7px;padding:4px 10px;color:var(--muted);font-size:10px;font-family:var(--ff-mono);cursor:pointer}
+.cloud-cfg-btn:hover{border-color:var(--accent);color:var(--accent)}
+/* CONFIG MODAL */
+.cfg-modal{display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);align-items:flex-end}
+.cfg-modal.open{display:flex}
+.cfg-panel{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:20px 20px calc(var(--safe-bot)+20px);width:100%;animation:slideUp .3s ease}
+
+/* AUSGANG NEW */
+.wa-dropdown-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.wa-dropdown-item:last-child{border-bottom:none}
+.wa-dropdown-item:active{background:var(--border)}
+.pos-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.pos-card.pos-ok{border-color:var(--accent2)}
+.pos-card.pos-warn{border-color:var(--warn)}
+.pos-card.pos-err{border-color:var(--danger)}
+.bexio-order-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.bexio-order-card.ready{border-color:var(--accent2)}
+.bexio-order-card.partial{border-color:var(--warn)}
+.bexio-order-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.bexio-order-title{font-family:var(--ff-display);font-size:14px;font-weight:700}
+.bexio-pos-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.bexio-pos-row:last-child{border-bottom:none}
+
+/* LOGIN */
+#login-screen{display:none;position:fixed;inset:0;z-index:800;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:24px}
+#login-screen.show{display:flex}
+.login-logo{font-family:var(--ff-display);font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:4px}
+.login-logo span{color:var(--accent)}
+.login-sub{font-size:12px;color:var(--muted);font-family:var(--ff-mono);margin-bottom:32px;letter-spacing:1px}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:360px}
+.login-tabs{display:flex;gap:6px;margin-bottom:20px}
+.login-tab{flex:1;padding:9px;text-align:center;border-radius:9px;font-family:var(--ff-display);font-size:13px;font-weight:700;cursor:pointer;border:none;background:var(--card);color:var(--muted);transition:all .2s}
+.login-tab.active{background:var(--accent);color:#fff}
+.login-error{font-size:12px;font-family:var(--ff-mono);color:var(--danger);text-align:center;margin-top:8px;min-height:18px}
+/* USER AVATAR in topbar */
+.user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);font-size:12px;font-weight:800;color:#fff;cursor:pointer;flex-shrink:0}
+.user-menu{display:none;position:fixed;top:calc(var(--safe-top)+52px);right:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;z-index:300;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.user-menu.open{display:block}
+.user-menu-name{font-family:var(--ff-display);font-size:14px;font-weight:700;padding:6px 10px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.user-menu-role{font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px}
+.user-menu-item{padding:9px 10px;border-radius:8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.user-menu-item:hover{background:var(--card)}
+.user-menu-item.danger{color:var(--danger)}
+/* BUCHUNG BY badge */
+.by-badge{font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px}
+
+/* KONFEKTIONIERUNG */
+.konf-arrow{text-align:center;font-size:20px;margin:4px 0;color:var(--muted)}
+.konf-chain{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px}
+.konf-chain-lv{font-size:10px;font-family:var(--ff-mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.chain-item{padding:8px 10px;background:var(--surface);border-radius:8px;border-left:3px solid var(--accent);margin-bottom:4px}
+.chain-item.bulk{border-left-color:var(--warn)}
+.chain-item.fertig{border-left-color:var(--accent2)}
+.chain-item.kunde{border-left-color:var(--danger)}
+/* EXCEL EXPORT MODAL */
+.export-option{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .2s}
+.export-option:hover{border-color:var(--accent)}
+.export-option-title{font-family:var(--ff-display);font-size:14px;font-weight:700;margin-bottom:4px}
+.export-option-desc{font-size:12px;color:var(--muted);line-height:1.5}
+/* BACKUP REMINDER */
+.backup-banner{background:linear-gradient(135deg,rgba(245,166,35,.15),rgba(245,166,35,.05));border:1px solid var(--warn);border-radius:13px;padding:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Swiss<span>Vitale</span></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="sync-info"><div class="sync-dot"></div><span id="sync-time">Lokal</span></div>
+      <div class="user-avatar" id="user-avatar" onclick="toggleUserMenu()">?</div>
+    </div>
+  </div>
+  <!-- CLOUD STATUS BAR -->
+  <div class="cloud-bar" id="cloud-bar">
+    <div class="cloud-status">
+      <div class="cloud-dot offline" id="cloud-dot"></div>
+      <span id="cloud-status-txt">Nicht verbunden</span>
+    </div>
+    <button class="cloud-cfg-btn" onclick="openCloudCfg()">⚙ Supabase</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="screen active" id="screen-dashboard">
+      <div class="sec-hdr" style="padding-top:8px">Lager<span>übersicht</span></div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Lagerwert CHF</div><div class="kpi-value accent" id="kpi-lw">—</div></div>
+        <div class="kpi"><div class="kpi-label">Artikel m. Bestand</div><div class="kpi-value green" id="kpi-art">—</div></div>
+        <div class="kpi"><div class="kpi-label">MHD Kritisch</div><div class="kpi-value danger" id="kpi-mhd">—</div></div>
+        <div class="kpi"><div class="kpi-label">Unter Minimum</div><div class="kpi-value warn" id="kpi-low">—</div></div>
+      </div>
+      <div id="dash-alerts"></div>
+      <div class="card"><div class="card-title">Lagerwert nach Kategorie</div><div id="kat-bars"></div></div>
+      <div class="card"><div class="card-title">Letzte Bewegungen</div><div id="last-moves"></div></div>
+    </div>
+
+    <!-- EINGANG / SCANNER -->
+    <div class="screen" id="screen-scanner">
+      <div class="sec-hdr" style="padding-top:8px">Waren<span>eingang</span></div>
+      <button class="scan-open-btn" onclick="openScanner()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Kamera – Etikett / Lieferschein scannen
+      </button>
+      <div class="card">
+        <div class="card-title">Wareneingang verbuchen</div>
+        <div class="form-group">
+            <label class="form-label">Artikel suchen</label>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input class="form-input" id="we-search" placeholder="Name oder Code…" oninput="filterWeArtikel()" style="padding-left:34px">
+            </div>
+            <div id="we-artikel-dropdown" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;max-height:200px;overflow-y:auto"></div>
+            <div id="we-selected-art" style="display:none;margin-top:8px;padding:10px 12px;background:var(--card);border:1px solid var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:space-between">
+              <div><div id="we-sel-name" style="font-size:13px;font-weight:500"></div><div id="we-sel-id" style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px"></div></div>
+              <button onclick="clearWeArtikel()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">×</button>
+            </div>
+            <input type="hidden" id="we-artikel">
+          </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Batch / Charge</label><input class="form-input" id="we-charge" placeholder="V30.260127"></div>
+          <div class="form-group"><label class="form-label">Menge</label><input class="form-input" id="we-menge" type="number" placeholder="38"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Best Before</label><input class="form-input" id="we-mhd" type="date"></div>
+          <div class="form-group"><label class="form-label">QS-Freigabe</label><select class="form-select" id="we-qs"><option>Freigegeben</option><option>Ausstehend</option><option>Gesperrt</option></select></div>
+        </div>
+        <div class="form-group"><label class="form-label">Lieferschein-Nr</label><input class="form-input" id="we-ls" placeholder="LS-2025-001"></div>
+        <button class="btn btn-success" onclick="submitWE()">✓ Wareneingang verbuchen</button>
+      </div>
+    </div>
+
+    <!-- BESTAND -->
+    <div class="screen" id="screen-bestand">
+      <div class="sec-hdr" style="padding-top:8px">Be<span>stand</span></div>
+      <div class="search-sort-bar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-input" id="bestand-search" placeholder="Artikel oder Code…" oninput="renderBestand()">
+        </div>
+        <button class="sort-btn" id="sort-b-btn" onclick="toggleSortB()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+          <span id="sort-b-lbl">A–Z</span>
+        </button>
+      </div>
+      <div class="filter-row" id="b-filters">
+        <div class="filter-chip active" onclick="setBF('',this)">Alle</div>
+        <div class="filter-chip" onclick="setBF('Swiss Vitale',this)">Swiss Vitale</div>
+        <div class="filter-chip" onclick="setBF('Private Label',this)">Private Label</div>
+        <div class="filter-chip" onclick="setBF('Rohstoff',this)">Rohstoffe</div>
+        <div class="filter-chip" onclick="setBF('Verpackung',this)">Verpackung</div>
+      </div>
+      <div id="bestand-list"></div>
+    </div>
+
+    <!-- AUSGANG -->
+    <div class="screen" id="screen-ausgang">
+      <div class="sec-hdr" style="padding-top:8px">Waren<span>ausgang</span></div>
+
+      <!-- TAB SWITCHER -->
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="filter-chip active" id="wa-tab-single" onclick="waTab('single')">Einzelbuchung</button>
+        <button class="filter-chip" id="wa-tab-auftrag" onclick="waTab('auftrag')">📋 Auftrag / Kunde</button>
+        <button class="filter-chip" id="wa-tab-bexio" onclick="waTab('bexio')">⬆ Bexio Import</button>
+      </div>
+
+      <!-- ── EINZELBUCHUNG ── -->
+      <div id="wa-panel-single">
+        <div class="card">
+          <div class="card-title">Einzelbuchung</div>
+          <div class="form-group">
+            <label class="form-label">Artikel suchen</label>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input class="form-input" id="wa-search" placeholder="Name oder Code…" oninput="filterWaArtikel()" style="padding-left:34px">
+            </div>
+            <div id="wa-artikel-dropdown" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;max-height:200px;overflow-y:auto"></div>
+            <div id="wa-selected-art" style="display:none;margin-top:8px;padding:10px 12px;background:var(--card);border:1px solid var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:space-between">
+              <div><div id="wa-sel-name" style="font-size:13px;font-weight:500"></div><div id="wa-sel-id" style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px"></div></div>
+              <button onclick="clearWaArtikel()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">×</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Charge (FEFO)</label>
+            <select class="form-select" id="wa-charge"></select>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Menge</label><input class="form-input" id="wa-menge" type="number" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">Verwendung</label><select class="form-select" id="wa-vz"><option>Verkauf</option><option>Muster</option><option>Eigenverbrauch</option><option>Set-Bildung</option><option>Retoure</option><option>Vernichtung</option></select></div>
+          </div>
+          <div class="form-group"><label class="form-label">Empfänger</label><input class="form-input" id="wa-empf" placeholder="Apotheke Bern AG"></div>
+          <div class="form-group"><label class="form-label">Lieferschein-Nr</label><input class="form-input" id="wa-ls" placeholder="ALS-2025-001"></div>
+          <button class="btn btn-danger" onclick="submitWA()">✓ Ausgang verbuchen</button>
+        </div>
+        <div class="card">
+          <div class="card-title">🔍 Chargen-Rückverfolgung</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">
+            Charge eingeben → vollständige Kette + Excel-Export für Rückruf-Dokumentation.
+          </div>
+          <div class="form-group">
+            <input class="form-input" id="rv-input" placeholder="Charge / Batch suchen… z.B. V30.260127" oninput="renderRV()">
+          </div>
+          <div id="rv-result"></div>
+          <div id="rv-export-wrap" style="display:none;margin-top:10px">
+            <button class="btn btn-primary" onclick="exportRVExcel()">
+              📥 Rückruf-Dokument als Excel exportieren
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AUFTRAG / KUNDE ── -->
+      <div id="wa-panel-auftrag" style="display:none">
+        <div class="card">
+          <div class="card-title">Kundendaten</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Kundenname / Firma</label><input class="form-input" id="ord-kunde" placeholder="Apotheke Bern AG"></div>
+            <div class="form-group"><label class="form-label">Kundennr. (Bexio)</label><input class="form-input" id="ord-kundennr" placeholder="K-1234"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Auftragsnr.</label><input class="form-input" id="ord-nr" placeholder="AU-2025-001"></div>
+            <div class="form-group"><label class="form-label">Lieferschein-Nr</label><input class="form-input" id="ord-ls" placeholder="LS-2025-001"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Positionen</div>
+          <div id="ord-positionen"></div>
+          <button class="btn btn-outline" onclick="addPosition()" style="margin-top:10px">+ Position hinzufügen</button>
+        </div>
+
+        <div class="card" id="ord-summary" style="display:none">
+          <div class="card-title">Zusammenfassung</div>
+          <div id="ord-summary-body"></div>
+        </div>
+
+        <button class="btn btn-danger" onclick="submitAuftrag()" style="margin-bottom:10px">✓ Ganzen Auftrag verbuchen</button>
+      </div>
+
+      <!-- ── BEXIO IMPORT ── -->
+      <div id="wa-panel-bexio" style="display:none">
+        <div class="card">
+          <div class="card-title">📄 Bexio Auftrags-Export importieren</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+            In Bexio: <b>Aufträge → Export → CSV</b> herunterladen und hier hochladen.<br>
+            Die App erkennt Kundennr., Produkt-Codes und Mengen und schlägt automatisch die FEFO-Charge vor.
+          </div>
+          <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px;border:2px dashed var(--border);border-radius:12px;cursor:pointer;background:var(--surface)">
+            <span style="font-size:28px">📂</span>
+            <span style="font-size:13px;color:var(--muted)">CSV-Datei aus Bexio auswählen</span>
+            <input type="file" accept=".csv,.xlsx" id="bexio-file-input" style="display:none" onchange="parseBexioCSV(this)">
+          </label>
+          <div style="margin-top:10px;font-size:11px;color:var(--muted)">
+            Alternativ: Auftrags-Daten manuell eingeben →
+            <button onclick="waTab('auftrag')" style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;font-family:var(--ff-mono)">Auftrag öffnen</button>
+          </div>
+        </div>
+        <div id="bexio-import-list"></div>
+      </div>
+    </div>
+
+    <!-- INVENTUR -->
+    <div class="screen" id="screen-inventur">
+      <div class="sec-hdr" style="padding-top:8px">In<span>ventur</span></div>
+      <div class="backup-banner" id="backup-reminder" style="display:none">
+        <div style="font-size:24px">⚠️</div>
+        <div style="flex:1">
+          <div style="font-family:var(--ff-display);font-size:13px;font-weight:700">Backup fällig</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px" id="backup-days">—</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportExcelBackup()">Jetzt</button>
+      </div>
+      <div class="export-banner">
+        <div style="font-size:26px">📤</div>
+        <div style="flex:1"><div style="font-family:var(--ff-display);font-size:14px;font-weight:700">CSV Export</div><div style="font-size:11px;color:var(--muted);margin-top:1px">Sync mit Excel / Bexio</div></div>
+        <button class="btn btn-primary btn-sm" onclick="exportExcelBackup()">📥 Excel Backup</button>
+      </div>
+      <div class="search-sort-bar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-input" id="inv-search" placeholder="Artikel suchen…" oninput="renderInventur()">
+        </div>
+        <button class="sort-btn" id="sort-i-btn" onclick="toggleSortI()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+          <span id="sort-i-lbl">A–Z</span>
+        </button>
+      </div>
+      <div class="card">
+        <div class="card-title">IST-Bestand erfassen</div>
+        <div id="inv-list"></div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+            <span style="font-size:12px;color:var(--muted)">Differenz Total CHF</span>
+            <span id="inv-diff-tot" style="font-family:var(--ff-mono);font-size:13px;font-weight:600">—</span>
+          </div>
+          <button class="btn btn-success" onclick="saveInventur()">✓ Inventur speichern</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- KONFEKTIONIERUNG -->
+    <div class="screen" id="screen-konf">
+      <div class="sec-hdr" style="padding-top:8px">Konfek<span>tionierung</span></div>
+
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="filter-chip active" id="kt-neu" onclick="kTab('neu')">Neue Produktion</button>
+        <button class="filter-chip" id="kt-liste" onclick="kTab('liste')">Produktionslog</button>
+        <button class="filter-chip" id="kt-rv" onclick="kTab('rv')">🔍 Rückverfolgung</button>
+      </div>
+
+      <!-- NEUE PRODUKTION -->
+      <div id="kp-neu">
+        <div class="card">
+          <div class="card-title">Schritt 1 – Bulk / Rohstoff (Eingang)</div>
+          <div class="form-group">
+            <label class="form-label">Bulk-Artikel suchen</label>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input class="form-input" id="konf-bulk-search" placeholder="z.B. Weihrauch BULK…" oninput="filterKonfBulk()" style="padding-left:34px">
+            </div>
+            <div id="konf-bulk-dd" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;max-height:180px;overflow-y:auto"></div>
+            <div id="konf-bulk-sel" style="display:none;margin-top:8px;padding:10px 12px;background:var(--card);border:1px solid var(--warn);border-radius:10px">
+              <div id="konf-bulk-name" style="font-size:13px;font-weight:500"></div>
+              <div id="konf-bulk-info" style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Eingangscharge (Bulk)</label>
+              <select class="form-select" id="konf-bulk-charge" style="font-size:12px"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Verbrauchte Menge</label>
+              <input class="form-input" id="konf-bulk-menge" type="number" placeholder="z.B. 2.5 L">
+            </div>
+          </div>
+        </div>
+
+        <div class="konf-arrow">↓</div>
+
+        <div class="card">
+          <div class="card-title">Schritt 2 – Fertigprodukt (Flasche)</div>
+          <div class="form-group">
+            <label class="form-label">Fertigprodukt suchen</label>
+            <div style="position:relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input class="form-input" id="konf-fertig-search" placeholder="z.B. Weihrauch 30ML…" oninput="filterKonfFertig()" style="padding-left:34px">
+            </div>
+            <div id="konf-fertig-dd" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-top:4px;max-height:180px;overflow-y:auto"></div>
+            <div id="konf-fertig-sel" style="display:none;margin-top:8px;padding:10px 12px;background:var(--card);border:1px solid var(--accent2);border-radius:10px">
+              <div id="konf-fertig-name" style="font-size:13px;font-weight:500"></div>
+              <div id="konf-fertig-info" style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Neue Charge (Flasche)</label>
+              <input class="form-input" id="konf-fertig-charge" placeholder="SV-2025-WF-001">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Anzahl Flaschen</label>
+              <input class="form-input" id="konf-fertig-menge" type="number" placeholder="333">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Neues MHD</label>
+              <input class="form-input" id="konf-fertig-mhd" type="date">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Abfüllung durch</label>
+              <select class="form-select" id="konf-dienstleister">
+                <option value="intern">Intern (selbst)</option>
+                <option value="dienstleister">Dienstleister</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" id="konf-dl-name-wrap" style="display:none">
+            <label class="form-label">Name Dienstleister</label>
+            <input class="form-input" id="konf-dl-name" placeholder="Abfüll AG Bern">
+          </div>
+        </div>
+
+        <button class="btn btn-success" onclick="submitKonfektionierung()" style="margin-bottom:10px">✓ Produktion erfassen & einbuchen</button>
+      </div>
+
+      <!-- PRODUKTIONSLOG -->
+      <div id="kp-liste" style="display:none">
+        <div class="search-sort-bar">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="search-input" id="konf-list-search" placeholder="Charge, Artikel…" oninput="renderKonfListe()">
+          </div>
+        </div>
+        <div id="konf-list"></div>
+      </div>
+
+      <!-- RÜCKVERFOLGUNG -->
+      <div id="kp-rv" style="display:none">
+        <div class="card">
+          <div class="card-title">🔍 Vollständige Chargen-Rückverfolgung</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">
+            Eingabe einer beliebigen Charge (Bulk, Flasche oder Lieferanten-Charge) → die App zeigt die gesamte Kette.
+          </div>
+          <div class="form-group">
+            <input class="form-input" id="rv3-input" placeholder="Charge eingeben…" oninput="renderRV3()">
+          </div>
+        </div>
+        <div id="rv3-result"></div>
+        <div id="rv3-export-btn" style="display:none;margin-top:4px">
+          <button class="btn btn-primary" onclick="exportChargeExcel()">📥 Rückverfolgungs-Excel exportieren</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BEWEGUNGEN -->
+    <div class="screen" id="screen-bewegungen">
+      <div class="sec-hdr" style="padding-top:8px">Alle <span>Bewegungen</span></div>
+      <div class="export-option" onclick="switchTab('ausgang',document.querySelectorAll('.tab')[4]);setTimeout(()=>{document.getElementById('rv-input').focus();waTab('single');},100)" style="margin-bottom:12px;display:flex;align-items:center;gap:12px;padding:12px 14px">
+        <div style="font-size:24px">🔍</div>
+        <div>
+          <div class="export-option-title" style="font-size:13px">Chargen-Rückverfolgung & Rückruf-Excel</div>
+          <div class="export-option-desc" style="font-size:11px">Charge eingeben → Kette anzeigen → Excel exportieren</div>
+        </div>
+        <div style="color:var(--muted);font-size:18px">›</div>
+      </div>
+
+      <!-- SUB-TABS -->
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="filter-chip active" id="bt-bewegungen" onclick="bewTab('bewegungen')">📋 Bewegungen</button>
+        <button class="filter-chip" id="bt-rueckv" onclick="bewTab('rueckv')">🔍 Rückverfolgung</button>
+      </div>
+
+      <!-- BEWEGUNGEN LISTE -->
+      <div id="bp-bewegungen">
+        <div class="search-sort-bar">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="search-input" id="bew-search" placeholder="Artikel, Code, Charge, Empfänger…" oninput="renderBewegungen()">
+          </div>
+          <button class="sort-btn" id="sort-bew-btn" onclick="toggleSortBew()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+            <span id="sort-bew-lbl">Neu</span>
+          </button>
+        </div>
+        <div class="filter-row" id="bew-filters">
+          <div class="filter-chip active" onclick="setBewF('',this)">Alle</div>
+          <div class="filter-chip" onclick="setBewF('WE',this)">📥 Eingang</div>
+          <div class="filter-chip" onclick="setBewF('WA',this)">📤 Ausgang</div>
+        </div>
+        <div id="bew-list"></div>
+      </div>
+
+      <!-- RÜCKVERFOLGUNG -->
+      <div id="bp-rueckv" style="display:none">
+        <div class="card">
+          <div class="card-title">🔍 Chargen-Rückverfolgung</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">
+            Gib eine beliebige Charge ein – die App zeigt die <b>vollständige Kette</b>:<br>
+            Wareneingang → Konfektionierung → Ausgang an Kunden
+          </div>
+          <div class="form-group">
+            <input class="form-input" id="rv-charge-input" placeholder="z.B. V30.260127 oder SV-2025-WF-001" oninput="renderRVFull()">
+          </div>
+        </div>
+
+        <!-- RESULT -->
+        <div id="rv-full-result"></div>
+
+        <!-- EXPORT BUTTON -->
+        <div id="rv-full-export" style="display:none;margin-top:4px;margin-bottom:10px">
+          <button class="btn btn-primary" onclick="exportChargeExcelFromMain()">
+            📥 Rückruf-Dokument als Excel exportieren
+          </button>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--ff-mono);margin-top:8px;text-align:center">
+            Enthält: Woher kam die Charge · Wer hat sie erhalten · Aktueller Restbestand
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Board
+    </button>
+    <button class="tab" onclick="switchTab('scanner',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Eingang
+    </button>
+    <button class="tab" onclick="switchTab('bestand',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Bestand
+    </button>
+    <button class="tab" onclick="switchTab('bewegungen',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Bewegungen
+    </button>
+    <button class="tab" onclick="switchTab('ausgang',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12l7 7 7-7"/></svg>Ausgang
+    </button>
+    <button class="tab" onclick="switchTab('konf',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Konf.
+    </button>
+    <button class="tab" onclick="switchTab('inventur',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Inventur
+    </button>
+  </div>
+</div>
+
+<!-- FULLSCREEN SCANNER -->
+<div id="scanner-fs">
+  <video id="cam-vid" autoplay playsinline muted></video>
+  <canvas id="cam-cvs"></canvas>
+  <div class="cam-overlay">
+    <div class="cam-guides">
+      <div class="cam-corner tl"></div><div class="cam-corner tr"></div>
+      <div class="cam-corner bl"></div><div class="cam-corner br"></div>
+    </div>
+    <div class="cam-scan-line"></div>
+  </div>
+  <div class="cam-topbar">
+    <div class="cam-title">📋 Etikett / Lieferschein scannen</div>
+    <button class="cam-close" onclick="closeScanner()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="cam-bottom">
+    <div class="cam-hint">Gesamtes Kamerabild wird analysiert<br>Halte das Etikett oder den Lieferschein ruhig ins Bild</div>
+    <div class="cam-shutter" onclick="captureAndOCR()"><div class="cam-shutter-inner"></div></div>
+  </div>
+  <div class="cam-processing" id="cam-proc">
+    <div class="ocr-spinner"></div>
+    <div class="ocr-prog" id="ocr-prog">Texterkennung läuft…</div>
+  </div>
+  <div class="cam-result" id="cam-result">
+    <div class="result-handle"></div>
+    <div class="result-title">Erkannte Daten</div>
+    <div class="result-grid" id="result-fields"></div>
+    <div class="result-raw" id="result-raw"></div>
+    <div class="result-btns">
+      <button class="btn btn-success" style="flex:2" onclick="applyAndClose()">✓ Übernehmen & Buchen</button>
+      <button class="btn btn-outline" style="flex:1" onclick="rescan()">Nochmals</button>
+    </div>
+  </div>
+</div>
+
+<!-- Artikel Detail Modal -->
+<div class="modal-backdrop" id="modal-art" onclick="closeModal('modal-art')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-art-title"></div>
+    <div id="modal-art-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DB_KEY='sv_lager_v2';
+const DEFAULT_ARTIKEL=[{"id": "SV20035", "name": "ARTEMIC RESCUE SPRAY 5ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20041", "name": "ASHWAGANDHA 2.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.95, "min": 5, "warnfrist": 90, "lieferant": "Lipoactive"}, {"id": "SV20039", "name": "ASHWAGANDHA 2.5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 65.0, "min": 5, "warnfrist": 180, "lieferant": "Lipoactive"}, {"id": "SV20026", "name": "ATOMIC MIX C-D-E 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20019", "name": "ATOMIC SPERMIDIN 24 - NMN 25 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "BIOV002", "name": "BOOSTICARE Rejuvenate Spermidin 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "10300", "name": "C-ENERGY VITALE", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 30.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10211-D", "name": "CARDIO VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20002", "name": "CBD FS 2.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20003", "name": "CBD FS 2.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.5, "min": 5, "warnfrist": 90, "lieferant": "Liquid Universum GmbH"}, {"id": "SV10006", "name": "CBD FS 2.5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 110.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10016", "name": "CBD ISO 5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10020", "name": "CBN FS 1.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.5, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV10023", "name": "CBN ISO 1% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20017", "name": "COENZYM Q10/VITAMIN BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10026", "name": "COENZYM Q10/VITAMIN E 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10027", "name": "COENZYM Q10/VITAMIN E 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20032", "name": "COGNITIVE CLARITY 15ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "Nueheights Ltd."}, {"id": "SV20006", "name": "CURCUMA 2% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 100.0, "min": 5, "warnfrist": 180, "lieferant": "\u2014"}, {"id": "SV10031", "name": "CURCUMA 6% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10034", "name": "CURCUMA 6% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10030", "name": "CURCUMA 6% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 100.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "10217", "name": "CURCUMA VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "OV0002", "name": "DROPPER BOTTLE ORION 10-63ml DIN18", "kat": "Verpackung", "einheit": "Stk", "preis": 0.474, "min": 5, "warnfrist": 90, "lieferant": "Miron Violetglas B.V"}, {"id": "OV0001", "name": "DROPPER BOTTLE ORION 30ml DIN18", "kat": "Verpackung", "einheit": "Stk", "preis": 0.5919, "min": 5, "warnfrist": 90, "lieferant": "Miron Violetglas B.V"}, {"id": "SV10036", "name": "FRANKINCENSE 2.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10038", "name": "FRANKINCENSE 2.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10039", "name": "FRANKINCENSE 2.5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 200.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10041", "name": "GINGER 2% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10042", "name": "GINGER 2% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20029", "name": "GINGER 2% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 50.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20036", "name": "GLUTATHION 100 VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20025", "name": "GLUTATHIONE 25 BULK", "kat": "Rohstoff", "einheit": "L", "preis": 66.0, "min": 5, "warnfrist": 180, "lieferant": "Lipoactive"}, {"id": "10219", "name": "HANF VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10210", "name": "IMMUN VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10228", "name": "INGWER VITALE, 30ml", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 1.5, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV10089", "name": "MIX C-D-E 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10090", "name": "MIX C-D-E 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20027", "name": "MIX C-D-E BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 204.0, "min": 5, "warnfrist": 180, "lieferant": "miVital AG"}, {"id": "SV10057", "name": "MIX C-O-C 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10055", "name": "MIX C-O-C 20ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10056", "name": "MIX C-O-C 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10040", "name": "MIX C-O-C BULK", "kat": "Rohstoff", "einheit": "L", "preis": 65.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10046", "name": "MIX CBD FS 1%/CURCUMA 3% 30ml", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10047", "name": "MIX CBD ISO 1%/CURCUMA 3% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10048", "name": "Mix CBD ISO 1%/CURCUMA 3% 30ml", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20001", "name": "MIX CBN - MELATONIN 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.2, "min": 5, "warnfrist": 90, "lieferant": "Liquid Universum GmbH"}, {"id": "SV20020", "name": "MIX CBN - MELATONIN 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.5, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV10052", "name": "MIX CBN - MELATONIN BULK", "kat": "Rohstoff", "einheit": "L", "preis": 200.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "10226", "name": "MIX CURCUMA/FRANKINCENSE 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 3.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10060", "name": "MIX FRANKINCENSE/CURCUMA 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10061", "name": "MIX FRANKINCENSE/CURCUMA 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10062", "name": "MIX FRANKINCENSE/CURCUMA BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 150.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10045", "name": "MIX Q10-OMEGA-B-PLUS", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10223", "name": "MOBIL VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20022", "name": "MULTIVITAMIN 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "Nueheights Ltd."}, {"id": "SV20023", "name": "MULTIVITAMIN 15ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "Nueheights Ltd."}, {"id": "SV20014", "name": "NMN 5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.75, "min": 5, "warnfrist": 90, "lieferant": "Nueheights Ltd."}, {"id": "SV20015", "name": "NMN 5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 5.25, "min": 5, "warnfrist": 90, "lieferant": "Nueheights Ltd."}, {"id": "SV20016", "name": "NMN 5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 75.0, "min": 5, "warnfrist": 180, "lieferant": "Nueheights Ltd."}, {"id": "SV20040", "name": "NMN SPERMIDINE BULK", "kat": "Rohstoff", "einheit": "L", "preis": 65.0, "min": 5, "warnfrist": 180, "lieferant": "Lipoactive"}, {"id": "10209", "name": "OMEGA 3 VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10065", "name": "OMEGA 369 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10227", "name": "OMEGA 369 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 3.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10066", "name": "OMEGA 369 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 5.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10067", "name": "OMEGA 369 BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 150.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "OV0004", "name": "PIPETTE ORION 10-63ML", "kat": "Verpackung", "einheit": "Stk", "preis": 0.3977, "min": 5, "warnfrist": 90, "lieferant": "Miron Violetglas B.V"}, {"id": "OV0003", "name": "PIPETTE ORION 30ML", "kat": "Verpackung", "einheit": "Stk", "preis": 0.4003, "min": 5, "warnfrist": 90, "lieferant": "Miron Violetglas B.V"}, {"id": "SV10085", "name": "PROPOLIS 1.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10086", "name": "PROPOLIS 1.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20028", "name": "PROPOLIS 1.5% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 50.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "10220", "name": "PROPOLIS VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10213", "name": "Q10 VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 1, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10221", "name": "SCHLAF VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 4.0, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV20031", "name": "SKIN FORMULA 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "Nueheights Ltd."}, {"id": "SV20024", "name": "SKIN FORMULA 15ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "Nueheights Ltd."}, {"id": "10222", "name": "SPERMIDIN VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 1.2, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV20007", "name": "SPERMIDINE COMPLEX 1,2% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.55, "min": 5, "warnfrist": 90, "lieferant": "Liquid Universum GmbH"}, {"id": "SV20004", "name": "SPERMIDINE COMPLEX 1,2% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.85, "min": 5, "warnfrist": 90, "lieferant": "Liquid Universum GmbH"}, {"id": "SV10088", "name": "SPERMIDINE COMPLEX 1.2% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 115.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20021", "name": "SPERMIDINE COMPLEX 2.4% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20034", "name": "SPERMIDINE COMPLEX 2.4% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 200.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20011", "name": "SPERMIDINE PLUS VITAMIN  B9 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.5, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV20012", "name": "SPERMIDINE PLUS VITAMIN B9 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.5, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV20013", "name": "SPERMIDINE PLUS VITAMIN B9 BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "warnfrist": 180, "lieferant": "\u2014"}, {"id": "10230", "name": "TELOMER VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 1.2, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV10069", "name": "Vitamin B-Total 10ml", "kat": "Private Label", "einheit": "Stk", "preis": 2.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10017", "name": "VITAMIN B-TOTAL 30ml", "kat": "Private Label", "einheit": "Stk", "preis": 2.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "10216", "name": "VITAMIN B+ VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10071", "name": "VITAMIN B12 0.03% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10073", "name": "VITAMIN B12 0.03% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20018", "name": "VITAMIN B12 0.03% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10075", "name": "VITAMIN C 10% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10208", "name": "VITAMIN C 10% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 9.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20030", "name": "VITAMIN C 10% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 35.0, "min": 5, "warnfrist": 180, "lieferant": "Swiss PharmaCan AG"}, {"id": "10224", "name": "VITAMIN C 3% 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 2.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20009", "name": "VITAMIN C 3% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV20005", "name": "VITAMIN C 3% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 100.0, "min": 5, "warnfrist": 180, "lieferant": "\u2014"}, {"id": "10215", "name": "VITAMIN C VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20010", "name": "VITAMIN D3 + K2 VEGAN 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.0, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV20033", "name": "VITAMIN D3 + K2 VEGAN 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 5.0, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV10091", "name": "VITAMIN D3 0,02% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.5, "min": 5, "warnfrist": 90, "lieferant": "NutriC Products Ltd."}, {"id": "SV10079", "name": "VITAMIN D3 0,06% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10092", "name": "VITAMIN D3 0,06% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "miVital AG"}, {"id": "SV20037", "name": "VITAMIN D3 0,06% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "warnfrist": 180, "lieferant": "miVital AG"}, {"id": "10225", "name": "VITAMIN D3 0.01% VEGAN 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 2.5, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV10010", "name": "VITAMIN D3 0.01% VEGAN 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.5, "min": 5, "warnfrist": 90, "lieferant": "\u2014"}, {"id": "SV10001", "name": "VITAMIN D3 0.01% VEGAN BULK", "kat": "Rohstoff", "einheit": "L", "preis": 50.0, "min": 5, "warnfrist": 180, "lieferant": "Nueheights Ltd."}, {"id": "10214", "name": "VITAMIN D3 VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 7.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}, {"id": "SV20038", "name": "VITAMIN D3/K2 vegan Bulk", "kat": "Rohstoff", "einheit": "Stk", "preis": 16.0, "min": 5, "warnfrist": 180, "lieferant": "Nueheights Ltd."}, {"id": "10218", "name": "WEIHRAUCH VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "warnfrist": 90, "lieferant": "Swiss PharmaCan AG"}];
+
+function loadDB(){try{const r=localStorage.getItem(DB_KEY);if(r)return JSON.parse(r);}catch(e){}return{artikel:DEFAULT_ARTIKEL,we:[],wa:[],konfektionierung:[],inventur:{}};}
+function saveDB(){try{localStorage.setItem(DB_KEY,JSON.stringify(db));document.getElementById('sync-time').textContent=new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});}catch(e){}}
+let db=loadDB();
+
+const KI={'Swiss Vitale':'💊','Private Label':'🏷️','Rohstoff':'🧪','Verpackung':'📦'};
+const fCHF=v=>'CHF '+Number(v).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fDate=d=>d?new Date(d).toLocaleDateString('de-CH'):'—';
+
+function getBestand(id){
+  const ein=db.we.filter(e=>e.artikelId===id&&e.qs==='Freigegeben').reduce((s,e)=>s+Number(e.menge),0);
+  const aus=db.wa.filter(e=>e.artikelId===id).reduce((s,e)=>s+Number(e.menge),0);
+  return ein-aus;
+}
+function getMHD(id){const a=db.we.filter(e=>e.artikelId===id&&e.qs==='Freigegeben'&&e.mhd).map(e=>e.mhd).sort();return a[0]||null;}
+function mhdSt(mhd,wf){if(!mhd)return'none';const d=Math.round((new Date(mhd)-new Date())/86400000);return d<30?'kritisch':d<wf?'warnung':'ok';}
+function getChargen(id){return db.we.filter(e=>e.artikelId===id&&e.qs==='Freigegeben'&&e.mhd).sort((a,b)=>a.mhd.localeCompare(b.mhd)).map(e=>({charge:e.charge,mhd:e.mhd}));}
+
+// DASHBOARD
+function renderDashboard(){
+  let lw=0,art=0,mhd=0,low=0;const kw={};
+  db.artikel.forEach(a=>{const b=getBestand(a.id);if(b<=0)return;art++;const w=b*a.preis;lw+=w;kw[a.kat]=(kw[a.kat]||0)+w;if(mhdSt(getMHD(a.id),a.warnfrist)==='kritisch')mhd++;if(b<a.min)low++;});
+  document.getElementById('kpi-lw').textContent=fCHF(lw);
+  document.getElementById('kpi-art').textContent=art;
+  document.getElementById('kpi-mhd').textContent=mhd;
+  document.getElementById('kpi-low').textContent=low;
+  let al='';
+  db.artikel.forEach(a=>{const b=getBestand(a.id),m=getMHD(a.id),ms=mhdSt(m,a.warnfrist);if(ms==='kritisch'){const d=Math.round((new Date(m)-new Date())/86400000);al+=`<div class="status-bar">🔴 <b>${a.name}</b> – MHD in ${d} Tagen</div>`;}if(b>0&&b<a.min)al+=`<div class="status-bar">🟡 <b>${a.name}</b> – Bestand ${b} unter Min ${a.min}</div>`;});
+  document.getElementById('dash-alerts').innerHTML=al;
+  const mx=Math.max(...Object.values(kw),1);
+  let bars='';Object.entries(kw).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{bars+=`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:12px">${KI[k]||''} ${k}</span><span style="font-family:var(--ff-mono);font-size:11px;color:var(--muted)">${fCHF(v)}</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="height:100%;width:${Math.round(v/mx*100)}%;background:var(--accent);border-radius:3px"></div></div></div>`;});
+  document.getElementById('kat-bars').innerHTML=bars||'<span style="color:var(--muted);font-size:13px">Noch keine Bestände erfasst</span>';
+  const mv=[...db.we.map(e=>({...e,typ:'WE'})),...db.wa.map(e=>({...e,typ:'WA'}))].sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,6);
+  let mh='';mv.forEach(m=>{const a=db.artikel.find(x=>x.id===m.artikelId);mh+=`<div class="art-row" style="cursor:default"><div class="art-icon">${m.typ==='WE'?'📥':'📤'}</div><div class="art-info"><div class="art-name">${a?.name||m.artikelId}</div><div class="art-meta">${m.charge||'—'} · ${fDate(m.datum)}</div></div><div class="art-right"><div class="art-qty" style="color:${m.typ==='WE'?'var(--accent2)':'var(--danger)'}">${m.typ==='WE'?'+':'−'}${m.menge}</div><div class="art-unit">${a?.einheit||'Stk'}</div></div></div>`;});
+  document.getElementById('last-moves').innerHTML=mh||'<div style="color:var(--muted);font-size:13px;padding:8px 0;text-align:center">Noch keine Bewegungen</div>';
+}
+
+// BESTAND
+let bFilter='',bSort='name';
+function setBF(f,el){bFilter=f;document.querySelectorAll('#b-filters .filter-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderBestand();}
+function toggleSortB(){const o=['name','id_asc','qty_desc','qty_asc'],l=['A–Z','Nr ↑','Menge ↓','Menge ↑'],i=o.indexOf(bSort);bSort=o[(i+1)%4];document.getElementById('sort-b-lbl').textContent=l[(i+1)%4];document.getElementById('sort-b-btn').classList.add('active');renderBestand();}
+function renderBestand(){
+  const q=(document.getElementById('bestand-search').value||'').toLowerCase();
+  let list=db.artikel.filter(a=>(!bFilter||a.kat===bFilter)&&(!q||a.name.toLowerCase().includes(q)||a.id.toLowerCase().includes(q)));
+  if(bSort==='qty_desc')list.sort((a,b)=>getBestand(b.id)-getBestand(a.id));
+  else if(bSort==='qty_asc')list.sort((a,b)=>getBestand(a.id)-getBestand(b.id));
+  else if(bSort==='id_asc')list.sort((a,b)=>a.id.localeCompare(b.id));
+  else list.sort((a,b)=>a.name.localeCompare(b.name));
+  let h='';
+  list.forEach(a=>{const b=getBestand(a.id),m=getMHD(a.id),ms=mhdSt(m,a.warnfrist);const ss=b<=0?'bd':b<a.min?'bd':b<a.min*1.2?'bw':'bg';const sl=b<=0?'LEER':b<a.min?'UNTER MIN':b<a.min*1.2?'KNAPP':'OK';const mb=ms==='kritisch'?'bd':ms==='warnung'?'bw':'bg';h+=`<div class="art-row" onclick="openArtModal('${a.id}')"><div class="art-icon">${KI[a.kat]||'📦'}</div><div class="art-info"><div class="art-name">${a.name}</div><div class="art-meta" style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap"><span class="badge bb">${a.id}</span><span class="badge ${ss}">${sl}</span>${m?`<span class="badge ${mb}">MHD ${ms==='kritisch'?'KRITISCH':ms==='warnung'?'WARN':'OK'}</span>`:''}</div></div><div class="art-right"><div class="art-qty" style="color:${b>0?'var(--text)':'var(--muted)'}">${b}</div><div class="art-unit">${a.einheit}</div></div></div>`;});
+  document.getElementById('bestand-list').innerHTML=`<div class="card">${h||'<div style="color:var(--muted);font-size:13px;padding:12px 0;text-align:center">Keine Artikel gefunden</div>'}</div>`;
+}
+function openArtModal(id){
+  const a=db.artikel.find(x=>x.id===id);if(!a)return;
+  const b=getBestand(a.id),m=getMHD(a.id),cg=getChargen(a.id);
+  document.getElementById('modal-art-title').textContent=a.name;
+  let h=`<div class="kpi-grid" style="margin-bottom:12px"><div class="kpi"><div class="kpi-label">Bestand</div><div class="kpi-value accent">${b} ${a.einheit}</div></div><div class="kpi"><div class="kpi-label">Lagerwert</div><div class="kpi-value green">${fCHF(b*a.preis)}</div></div></div><div class="card" style="margin-bottom:10px">`;
+  [['ID',a.id],['Kategorie',a.kat],['Einkaufspreis',fCHF(a.preis)],['Mindestbestand',a.min+' '+a.einheit],['Lieferant',a.lieferant],['Nächstes MHD',fDate(m)]].forEach(([l,v])=>{h+=`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted);font-size:12px">${l}</span><span style="font-family:var(--ff-mono);font-size:12px">${v}</span></div>`;});
+  h+=`</div><div class="card-title">Chargen (FEFO)</div><div class="card">`;
+  if(cg.length)cg.forEach(c=>{
+    const einC=db.we.filter(e=>e.artikelId===id&&e.charge===c.charge&&e.qs==='Freigegeben').reduce((s,e)=>s+Number(e.menge),0);
+    const ausC=db.wa.filter(e=>e.artikelId===id&&e.charge===c.charge).reduce((s,e)=>s+Number(e.menge),0);
+    const bC=einC-ausC;
+    const art=db.artikel.find(x=>x.id===id);
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)"><div><span style="font-family:var(--ff-mono);font-size:11px;color:var(--accent)">${c.charge}</span><div style="font-size:10px;color:var(--muted);margin-top:2px">MHD ${fDate(c.mhd)}</div></div><div style="text-align:right"><span style="font-family:var(--ff-display);font-size:15px;font-weight:700;color:${bC>0?'var(--text)':'var(--muted)'}">${bC}</span><span style="font-size:10px;color:var(--muted);margin-left:3px">${art?.einheit||'Stk'}</span></div></div>`;});
+  else h+=`<span style="color:var(--muted);font-size:12px">Keine Chargen vorhanden</span>`;
+  h+=`</div>`;
+  document.getElementById('modal-art-body').innerHTML=h;
+  document.getElementById('modal-art').classList.add('open');
+}
+
+// WE
+function populateSelects(){
+  const o=db.artikel.map(a=>`<option value="${a.id}">${a.id} – ${a.name}</option>`).join('');
+  document.getElementById('we-artikel').innerHTML=o;
+  document.getElementById('wa-artikel').innerHTML=o;
+  document.getElementById('wa-artikel').addEventListener('change',updateChargen);
+  updateChargen();
+}
+// WE ARTIKEL SEARCH
+let weSelectedId = null;
+
+function filterWeArtikel() {
+  const q = document.getElementById('we-search').value.toLowerCase().trim();
+  const dd = document.getElementById('we-artikel-dropdown');
+  if (!q) { dd.style.display='none'; return; }
+  const matches = db.artikel.filter(a =>
+    a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q)
+  ).slice(0, 8);
+  if (!matches.length) { dd.style.display='none'; return; }
+  dd.innerHTML = matches.map(a => {
+    const b = getBestand(a.id);
+    return `<div class="wa-dropdown-item" onclick="selectWeArtikel('${a.id}')">
+      <div style="font-size:13px">${KI[a.kat]||'📦'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">${a.id} · Bestand: ${b} ${a.einheit}</div>
+      </div>
+    </div>`;
+  }).join('');
+  dd.style.display = 'block';
+}
+
+function selectWeArtikel(id) {
+  weSelectedId = id;
+  const a = db.artikel.find(x=>x.id===id);
+  document.getElementById('we-search').value = '';
+  document.getElementById('we-artikel-dropdown').style.display = 'none';
+  document.getElementById('we-artikel').value = id;
+  const sel = document.getElementById('we-selected-art');
+  sel.style.display = 'flex';
+  document.getElementById('we-sel-name').textContent = a.name;
+  document.getElementById('we-sel-id').textContent = a.id + ' · ' + a.kat + ' · ' + a.einheit;
+}
+
+function clearWeArtikel() {
+  weSelectedId = null;
+  document.getElementById('we-selected-art').style.display = 'none';
+  document.getElementById('we-search').value = '';
+  document.getElementById('we-artikel').value = '';
+}
+
+function submitWE(){
+  if(!weSelectedId){showToast('Artikel wählen','error');return;}
+  const e={id:'we'+Date.now(),datum:new Date().toISOString().split('T')[0],artikelId:weSelectedId,charge:document.getElementById('we-charge').value.trim(),mhd:document.getElementById('we-mhd').value,menge:Number(document.getElementById('we-menge').value),ls:document.getElementById('we-ls').value.trim(),qs:document.getElementById('we-qs').value,durch:(currentUser?currentUser.name:'Unbekannt')};
+  if(!e.charge||!e.menge||!e.mhd){showToast('Charge, Menge und MHD sind Pflichtfelder','error');return;}
+  db.we.push(e);saveDB();showToast('✓ Wareneingang verbucht','success');
+  ['we-charge','we-menge','we-mhd','we-ls'].forEach(i=>document.getElementById(i).value='');
+  clearWeArtikel();
+  renderDashboard();
+}
+
+// WA – EINZELBUCHUNG
+let waSelectedId = null;
+
+function waTab(t) {
+  ['single','auftrag','bexio'].forEach(x=>{
+    document.getElementById('wa-panel-'+x).style.display = x===t?'block':'none';
+    document.getElementById('wa-tab-'+x).classList.toggle('active', x===t);
+  });
+}
+
+function filterWaArtikel() {
+  const q = document.getElementById('wa-search').value.toLowerCase().trim();
+  const dd = document.getElementById('wa-artikel-dropdown');
+  if (!q) { dd.style.display='none'; return; }
+  const matches = db.artikel.filter(a =>
+    a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q)
+  ).slice(0,8);
+  if (!matches.length) { dd.style.display='none'; return; }
+  dd.innerHTML = matches.map(a => {
+    const b = getBestand(a.id);
+    return `<div class="wa-dropdown-item" onclick="selectWaArtikel('${a.id}')">
+      <div style="font-size:13px">${KI[a.kat]||'📦'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">${a.id} · Bestand: ${b} ${a.einheit}</div>
+      </div>
+    </div>`;
+  }).join('');
+  dd.style.display = 'block';
+}
+
+function selectWaArtikel(id) {
+  waSelectedId = id;
+  const a = db.artikel.find(x=>x.id===id);
+  document.getElementById('wa-search').value = '';
+  document.getElementById('wa-artikel-dropdown').style.display = 'none';
+  const sel = document.getElementById('wa-selected-art');
+  sel.style.display = 'flex';
+  document.getElementById('wa-sel-name').textContent = a.name;
+  document.getElementById('wa-sel-id').textContent = a.id + ' · Bestand: ' + getBestand(id) + ' ' + a.einheit;
+  updateChargenById(id);
+}
+
+function clearWaArtikel() {
+  waSelectedId = null;
+  document.getElementById('wa-selected-art').style.display = 'none';
+  document.getElementById('wa-search').value = '';
+  document.getElementById('wa-charge').innerHTML = '<option>Kein Artikel gewählt</option>';
+}
+
+function updateChargenById(id) {
+  const cg = getChargen(id);
+  document.getElementById('wa-charge').innerHTML = cg.length
+    ? cg.map(c=>`<option value="${c.charge}">${c.charge} — MHD ${fDate(c.mhd)}</option>`).join('')
+    : '<option>Keine Chargen verfügbar</option>';
+}
+
+function updateChargen() { if(waSelectedId) updateChargenById(waSelectedId); }
+
+function submitWA() {
+  if(!waSelectedId){showToast('Artikel wählen','error');return;}
+  const id=waSelectedId, b=getBestand(id), menge=Number(document.getElementById('wa-menge').value);
+  if(!menge){showToast('Menge eingeben','error');return;}
+  if(menge>b){showToast(`Menge ${menge} > Bestand ${b}`,'error');return;}
+  db.wa.push({id:'wa'+Date.now(),datum:new Date().toISOString().split('T')[0],artikelId:id,
+    charge:document.getElementById('wa-charge').value,menge,
+    empf:document.getElementById('wa-empf').value.trim(),
+    ls:document.getElementById('wa-ls').value.trim(),
+    vz:document.getElementById('wa-vz').value,
+    durch:(currentUser?currentUser.name:'Unbekannt')});
+  saveDB();showToast('✓ Ausgang verbucht','success');
+  clearWaArtikel();
+  ['wa-menge','wa-empf','wa-ls'].forEach(i=>document.getElementById(i).value='');
+  renderDashboard();
+}
+
+// ── AUFTRAG / MULTI-POSITION ──────────────────────────
+let ordPositionen = [];
+
+function addPosition(prefill={}) {
+  const id = 'pos_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  ordPositionen.push({ id, artikelId: prefill.artikelId||'', charge: prefill.charge||'', menge: prefill.menge||'' });
+  renderPositionen();
+}
+
+function removePosition(id) {
+  ordPositionen = ordPositionen.filter(p=>p.id!==id);
+  renderPositionen();
+}
+
+function renderPositionen() {
+  const container = document.getElementById('ord-positionen');
+  if (!ordPositionen.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;text-align:center">Noch keine Positionen – unten hinzufügen</div>';
+    document.getElementById('ord-summary').style.display='none';
+    return;
+  }
+  let h = '';
+  ordPositionen.forEach((pos,i) => {
+    const a = db.artikel.find(x=>x.id===pos.artikelId);
+    const b = pos.artikelId ? getBestand(pos.artikelId) : 0;
+    const cg = pos.artikelId ? getChargen(pos.artikelId) : [];
+    const menge = Number(pos.menge)||0;
+    const status = !pos.artikelId ? 'pos-warn' : menge > b ? 'pos-err' : 'pos-ok';
+
+    h += `<div class="pos-card ${status}" id="poscard_${pos.id}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-family:var(--ff-mono);font-size:11px;color:var(--muted)">Position ${i+1}</div>
+        <button onclick="removePosition('${pos.id}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:0">×</button>
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <div style="position:relative">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--muted);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="form-input" placeholder="Artikel suchen…" value="${a?a.name:''}" 
+            oninput="filterPosArtikel(this,'${pos.id}')" 
+            onfocus="filterPosArtikel(this,'${pos.id}')"
+            style="padding-left:30px;font-size:13px">
+        </div>
+        <div id="pos-dd-${pos.id}" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-top:3px;max-height:160px;overflow-y:auto;position:relative;z-index:50"></div>
+        ${a?`<div style="font-size:10px;color:var(--accent);font-family:var(--ff-mono);margin-top:3px">${a.id} · Bestand: ${b} ${a.einheit}</div>`:''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div class="form-label">Charge (FEFO)</div>
+          <select class="form-select" style="font-size:12px" onchange="updatePosCharge('${pos.id}',this.value)">
+            ${cg.length ? cg.map(c=>`<option value="${c.charge}" ${c.charge===pos.charge?'selected':''}>${c.charge} — ${fDate(c.mhd)}</option>`).join('') : '<option>—</option>'}
+          </select>
+        </div>
+        <div>
+          <div class="form-label">Menge</div>
+          <input class="form-input" type="number" placeholder="0" value="${pos.menge}" 
+            onchange="updatePosMenge('${pos.id}',this.value)"
+            style="font-size:14px">
+        </div>
+      </div>
+      ${menge > b && pos.artikelId ? `<div style="font-size:11px;color:var(--danger);margin-top:6px;font-family:var(--ff-mono)">⚠ Menge ${menge} > Bestand ${b}</div>` : ''}
+    </div>`;
+  });
+  container.innerHTML = h;
+  renderOrderSummary();
+}
+
+function filterPosArtikel(input, posId) {
+  const q = input.value.toLowerCase().trim();
+  const dd = document.getElementById('pos-dd-'+posId);
+  if (!q) { dd.style.display='none'; return; }
+  const matches = db.artikel.filter(a=>a.name.toLowerCase().includes(q)||a.id.toLowerCase().includes(q)).slice(0,6);
+  if (!matches.length) { dd.style.display='none'; return; }
+  dd.innerHTML = matches.map(a=>{
+    const b=getBestand(a.id);
+    return `<div class="wa-dropdown-item" onclick="selectPosArtikel('${posId}','${a.id}',this)">
+      <div style="font-size:12px">${KI[a.kat]||'📦'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">${a.id} · ${b} ${a.einheit}</div>
+      </div>
+    </div>`;
+  }).join('');
+  dd.style.display='block';
+}
+
+function selectPosArtikel(posId, artikelId, el) {
+  const pos = ordPositionen.find(p=>p.id===posId);
+  if (!pos) return;
+  pos.artikelId = artikelId;
+  // Auto-set FEFO charge
+  const cg = getChargen(artikelId);
+  pos.charge = cg.length ? cg[0].charge : '';
+  const dd = document.getElementById('pos-dd-'+posId);
+  if (dd) dd.style.display='none';
+  renderPositionen();
+}
+
+function updatePosCharge(posId, charge) {
+  const pos = ordPositionen.find(p=>p.id===posId);
+  if (pos) { pos.charge = charge; renderOrderSummary(); }
+}
+
+function updatePosMenge(posId, menge) {
+  const pos = ordPositionen.find(p=>p.id===posId);
+  if (pos) { pos.menge = menge; renderPositionen(); }
+}
+
+function renderOrderSummary() {
+  const valid = ordPositionen.filter(p=>p.artikelId&&Number(p.menge)>0);
+  const sumEl = document.getElementById('ord-summary');
+  if (!valid.length) { sumEl.style.display='none'; return; }
+  sumEl.style.display='block';
+  const kunde = document.getElementById('ord-kunde').value||'—';
+  let total = 0, h='';
+  valid.forEach(pos=>{
+    const a=db.artikel.find(x=>x.id===pos.artikelId);
+    const wert = (a?.preis||0)*Number(pos.menge);
+    total += wert;
+    const b=getBestand(pos.artikelId);
+    const ok=Number(pos.menge)<=b;
+    h+=`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);align-items:center">
+      <div style="flex:1;min-width:0"><div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a?.name||pos.artikelId}</div>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">${pos.charge||'—'}</div></div>
+      <div style="text-align:right;flex-shrink:0;margin-left:8px">
+        <div style="font-family:var(--ff-mono);font-size:12px;color:${ok?'var(--text)':'var(--danger)'}">${pos.menge} ${a?.einheit||'Stk'}</div>
+        <div style="font-size:10px;color:var(--muted)">${fCHF(wert)}</div>
+      </div>
+    </div>`;
+  });
+  h+=`<div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:2px">
+    <span style="font-family:var(--ff-display);font-size:13px;font-weight:700">Total</span>
+    <span style="font-family:var(--ff-display);font-size:13px;font-weight:700;color:var(--accent)">${fCHF(total)}</span>
+  </div>`;
+  document.getElementById('ord-summary-body').innerHTML=h;
+}
+
+function submitAuftrag() {
+  const kunde = document.getElementById('ord-kunde').value.trim();
+  const kundennr = document.getElementById('ord-kundennr').value.trim();
+  const ordnr = document.getElementById('ord-nr').value.trim();
+  const ls = document.getElementById('ord-ls').value.trim();
+  const valid = ordPositionen.filter(p=>p.artikelId&&Number(p.menge)>0);
+  if (!valid.length){showToast('Mindestens eine Position erfassen','error');return;}
+  if (!kunde){showToast('Kundenname eingeben','error');return;}
+  let errors=0;
+  valid.forEach(pos=>{
+    const b=getBestand(pos.artikelId);
+    if(Number(pos.menge)>b){errors++;}
+  });
+  if(errors){showToast(`${errors} Position(en) überschreiten Bestand`,'error');return;}
+  const now=Date.now();
+  valid.forEach((pos,i)=>{
+    db.wa.push({id:'wa'+now+'_'+i, datum:new Date().toISOString().split('T')[0],
+      artikelId:pos.artikelId, charge:pos.charge, menge:Number(pos.menge),
+      empf:kunde+(kundennr?' ('+kundennr+')':''),
+      ls:ls||ordnr||'—', vz:'Verkauf', durch:(currentUser?currentUser.name:'Unbekannt')});
+  });
+  saveDB();
+  showToast(`✓ Auftrag ${ordnr||kunde} – ${valid.length} Positionen verbucht`,'success');
+  ordPositionen=[];
+  ['ord-kunde','ord-kundennr','ord-nr','ord-ls'].forEach(i=>document.getElementById(i).value='');
+  renderPositionen();
+  renderDashboard();
+}
+
+// ── BEXIO CSV IMPORT ─────────────────────────────────
+async function parseBexioCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const text = await file.text();
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  if (!lines.length){showToast('Datei leer','error');return;}
+
+  // Detect separator
+  const sep = lines[0].includes(';') ? ';' : ',';
+  const headers = lines[0].split(sep).map(h=>h.replace(/["\']/g,'').trim().toLowerCase());
+
+  // Map header indices
+  const col = (names) => {
+    for (const n of names) { const i = headers.findIndex(h=>h.includes(n)); if(i>=0) return i; }
+    return -1;
+  };
+  const iKunde    = col(['kontakt','kunde','company','firm','name']);
+  const iKundennr = col(['kundennr','kunden-nr','contact_nr','nr','id']);
+  const iArtNr    = col(['produktcode','artikel','product','item','code']);
+  const iMenge    = col(['menge','qty','quantity','anzahl']);
+  const iAuftrag  = col(['auftrag','order','nr','belegnr','number']);
+  const iLs       = col(['lieferschein','ls','delivery']);
+
+  // Group by order/customer
+  const orders = {};
+  for (let i=1; i<lines.length; i++) {
+    const cols = lines[i].split(sep).map(c=>c.replace(/^["']|["']$/g,'').trim());
+    const artNr   = iArtNr>=0   ? cols[iArtNr]   : '';
+    const menge   = iMenge>=0   ? Number(cols[iMenge])||0 : 0;
+    const kunde   = iKunde>=0   ? cols[iKunde]   : 'Unbekannt';
+    const kundennr= iKundennr>=0? cols[iKundennr]: '';
+    const ordNr   = iAuftrag>=0 ? cols[iAuftrag] : 'Import_'+i;
+    const ls      = iLs>=0      ? cols[iLs]      : '';
+    if (!artNr || !menge) continue;
+
+    const key = ordNr+'||'+kunde;
+    if (!orders[key]) orders[key]={ordNr,kunde,kundennr,ls,positionen:[]};
+
+    // Match artikel
+    const art = db.artikel.find(a=>
+      a.id.toLowerCase()===artNr.toLowerCase() ||
+      a.name.toLowerCase().includes(artNr.toLowerCase())
+    );
+    const cg = art ? getChargen(art.id) : [];
+    orders[key].positionen.push({
+      artikelId: art?.id||null, artNrRaw:artNr,
+      charge: cg.length?cg[0].charge:'',
+      menge, artName: art?.name||artNr,
+      einheit: art?.einheit||'Stk',
+      bestand: art?getBestand(art.id):0,
+      fefoMhd: cg.length?cg[0].mhd:null
+    });
+  }
+
+  const orderList = Object.values(orders);
+  if (!orderList.length){showToast('Keine gültigen Positionen gefunden','error');return;}
+  renderBexioOrders(orderList);
+  showToast(`✓ ${orderList.length} Aufträge importiert`,'success');
+}
+
+let importedOrders = [];
+
+function renderBexioOrders(orders) {
+  importedOrders = orders;
+  let h='';
+  orders.forEach((ord,oi)=>{
+    const allOk = ord.positionen.every(p=>p.artikelId && p.menge<=p.bestand);
+    const someOk = ord.positionen.some(p=>p.artikelId);
+    const cls = allOk?'ready':someOk?'partial':'';
+    h+=`<div class="bexio-order-card ${cls}" id="bexio-ord-${oi}">
+      <div class="bexio-order-header">
+        <div>
+          <div class="bexio-order-title">${ord.kunde}</div>
+          <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px">
+            ${ord.kundennr?'Nr: '+ord.kundennr+' · ':''}Auftrag: ${ord.ordNr}
+          </div>
+        </div>
+        <span class="badge ${allOk?'bg':someOk?'bw':'bd'}">${allOk?'BEREIT':someOk?'TEILWEISE':'FEHLER'}</span>
+      </div>
+      ${ord.positionen.map((pos,pi)=>{
+        const ok=pos.artikelId&&pos.menge<=pos.bestand;
+        const cg=pos.artikelId?getChargen(pos.artikelId):[];
+        return `<div class="bexio-pos-row">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pos.artName}</div>
+            <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px">
+              ${pos.artikelId?pos.artikelId:'<span style=color:var(--danger)>Nicht erkannt</span>'}
+            </div>
+            <div style="margin-top:4px">
+              <select style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 6px;color:var(--text);font-family:var(--ff-mono);font-size:10px;width:100%" 
+                onchange="importedOrders[${oi}].positionen[${pi}].charge=this.value">
+                ${cg.length?cg.map(c=>`<option value="${c.charge}" ${c.charge===pos.charge?'selected':''}>${c.charge} — MHD ${fDate(c.mhd)}</option>`).join(''):'<option>Keine Charge</option>'}
+              </select>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:8px">
+            <div style="font-family:var(--ff-mono);font-size:13px;font-weight:600;color:${ok?'var(--text)':'var(--danger)'}">${pos.menge} ${pos.einheit}</div>
+            <div style="font-size:10px;color:var(--muted)">Bst: ${pos.bestand}</div>
+          </div>
+        </div>`;
+      }).join('')}
+      <button class="btn ${allOk?'btn-success':'btn-outline'}" style="margin-top:10px" onclick="verbucheImportOrder(${oi})">
+        ${allOk?'✓ Ausgang verbuchen':'⚠ Trotzdem verbuchen'}
+      </button>
+    </div>`;
+  });
+  document.getElementById('bexio-import-list').innerHTML=h;
+}
+
+function verbucheImportOrder(oi) {
+  const ord = importedOrders[oi];
+  const valid = ord.positionen.filter(p=>p.artikelId&&p.menge>0);
+  if(!valid.length){showToast('Keine gültigen Positionen','error');return;}
+  const now=Date.now();
+  valid.forEach((pos,i)=>{
+    db.wa.push({id:'wa'+now+'_'+oi+'_'+i, datum:new Date().toISOString().split('T')[0],
+      artikelId:pos.artikelId, charge:pos.charge, menge:pos.menge,
+      empf:ord.kunde+(ord.kundennr?' ('+ord.kundennr+')':''),
+      ls:ord.ls||ord.ordNr||'—', vz:'Verkauf', durch:(currentUser?currentUser.name:'Unbekannt')});
+  });
+  saveDB();
+  showToast(`✓ ${ord.kunde} – ${valid.length} Positionen verbucht`,'success');
+  const card=document.getElementById('bexio-ord-'+oi);
+  if(card){card.style.opacity='0.4';card.style.pointerEvents='none';}
+  renderDashboard();
+}
+
+// RV – VOLLSTÄNDIG MIT EXPORT
+function renderRV(){
+  const q=(document.getElementById('rv-input').value||'').toLowerCase().trim();
+  const el=document.getElementById('rv-result');
+  const expWrap=document.getElementById('rv-export-wrap');
+  if(!q){el.innerHTML='';if(expWrap)expWrap.style.display='none';return;}
+
+  const chainRows=buildChainRows(q);
+  const ein=db.we.filter(e=>(e.charge||'').toLowerCase().includes(q));
+  const konf=(db.konfektionierung||[]).filter(k=>(k.bulkCharge||'').toLowerCase().includes(q)||(k.fertigCharge||'').toLowerCase().includes(q));
+  const aus=db.wa.filter(e=>(e.charge||'').toLowerCase().includes(q));
+
+  // Restbestand dieser Charge
+  const chargeBestand={};
+  db.we.filter(e=>(e.charge||'').toLowerCase().includes(q)&&e.qs==='Freigegeben').forEach(e=>{
+    chargeBestand[e.charge]=(chargeBestand[e.charge]||0)+Number(e.menge);
+  });
+  db.wa.filter(e=>(e.charge||'').toLowerCase().includes(q)).forEach(e=>{
+    chargeBestand[e.charge]=(chargeBestand[e.charge]||0)-Number(e.menge);
+  });
+
+  let h='';
+
+  // Summary box
+  if(chainRows.length){
+    const restTotal=Object.values(chargeBestand).reduce((s,v)=>s+v,0);
+    const empfSet=new Set(aus.map(e=>e.empf||'—').filter(x=>x!=='—'));
+    h+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
+      <div style="font-family:var(--ff-display);font-size:13px;font-weight:700;margin-bottom:8px">Zusammenfassung</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:var(--surface);border-radius:8px;padding:8px"><div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">Eingang</div><div style="font-family:var(--ff-display);font-size:16px;font-weight:700;color:var(--accent2)">${ein.length} Buchung${ein.length!==1?'en':''}</div></div>
+        <div style="background:var(--surface);border-radius:8px;padding:8px"><div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">Ausgang</div><div style="font-family:var(--ff-display);font-size:16px;font-weight:700;color:var(--danger)">${aus.length} Buchung${aus.length!==1?'en':''}</div></div>
+        <div style="background:var(--surface);border-radius:8px;padding:8px"><div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">Restbestand</div><div style="font-family:var(--ff-display);font-size:16px;font-weight:700;color:${restTotal>0?'var(--warn)':'var(--muted)'}">${restTotal}</div></div>
+        <div style="background:var(--surface);border-radius:8px;padding:8px"><div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">Kunden</div><div style="font-family:var(--ff-display);font-size:16px;font-weight:700;color:var(--accent)">${empfSet.size}</div></div>
+      </div>
+    </div>`;
+  }
+
+  // WE entries
+  if(ein.length){
+    h+=`<div class="card-title" style="margin-top:8px">📥 Wareneingang (${ein.length})</div>`;
+    ein.forEach(e=>{
+      const a=db.artikel.find(x=>x.id===e.artikelId);
+      h+=`<div class="art-row" style="cursor:default">
+        <div class="art-icon" style="background:rgba(0,229,160,.1)">📥</div>
+        <div class="art-info">
+          <div class="art-name">${a?.name||e.artikelId}</div>
+          <div class="art-meta" style="display:flex;flex-direction:column;gap:1px;margin-top:2px">
+            <span><span class="badge bb" style="margin-right:4px">${e.artikelId}</span>Charge: <b>${e.charge}</b></span>
+            <span>${fDate(e.datum)} · ${e.menge} ${a?.einheit||'Stk'} · MHD: ${fDate(e.mhd)}</span>
+            <span>LS: ${e.ls||'—'} · QS: ${e.qs||'—'}${e.durch?' · 👤 '+e.durch:''}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Konfektionierung
+  if(konf.length){
+    h+=`<div class="card-title" style="margin-top:8px">⚗️ Konfektionierung (${konf.length})</div>`;
+    konf.forEach(k=>{
+      const bulkA=db.artikel.find(x=>x.id===k.bulkArtikelId);
+      const fertA=db.artikel.find(x=>x.id===k.fertigArtikelId);
+      h+=`<div class="art-row" style="cursor:default">
+        <div class="art-icon" style="background:rgba(61,156,240,.1)">⚗️</div>
+        <div class="art-info">
+          <div class="art-name">${bulkA?.name||k.bulkArtikelId} → ${fertA?.name||k.fertigArtikelId}</div>
+          <div class="art-meta" style="display:flex;flex-direction:column;gap:1px;margin-top:2px">
+            <span>Bulk-Charge: <b style="color:var(--warn)">${k.bulkCharge}</b> (${k.bulkMenge} ${bulkA?.einheit||'L'})</span>
+            <span>Neue Charge: <b style="color:var(--accent2)">${k.fertigCharge}</b> (${k.fertigMenge} Stk)</span>
+            <span>${fDate(k.datum)} · ${k.dienstleister==='intern'?'Intern':k.dlName||'Dienstleister'}${k.durch?' · 👤 '+k.durch:''}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // WA entries
+  if(aus.length){
+    h+=`<div class="card-title" style="margin-top:8px">📤 Ausgänge an Kunden (${aus.length})</div>`;
+    aus.forEach(e=>{
+      const a=db.artikel.find(x=>x.id===e.artikelId);
+      h+=`<div class="art-row" style="cursor:default">
+        <div class="art-icon" style="background:rgba(240,64,64,.1)">📤</div>
+        <div class="art-info">
+          <div class="art-name">${e.empf||'—'}</div>
+          <div class="art-meta" style="display:flex;flex-direction:column;gap:1px;margin-top:2px">
+            <span>${a?.name||e.artikelId}</span>
+            <span>Charge: <b>${e.charge}</b> · ${e.menge} ${a?.einheit||'Stk'}</span>
+            <span>${fDate(e.datum)} · LS: ${e.ls||'—'}${e.durch?' · 👤 '+e.durch:''}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if(!h)h='<div style="color:var(--muted);font-size:12px;padding:8px 0">Keine Einträge für diese Charge gefunden</div>';
+  el.innerHTML=h;
+  if(expWrap) expWrap.style.display=chainRows.length?'block':'none';
+}
+
+function exportRVExcel(){
+  const q=document.getElementById('rv-input').value.trim();
+  if(!q){showToast('Zuerst eine Charge suchen','error');return;}
+  // re-use the full chain export from Konf tab
+  document.getElementById('rv3-input').value=q;
+  exportChargeExcel();
+}
+
+// INVENTUR
+let iSort='name';
+function toggleSortI(){const o=['name','id_asc','qty_desc','qty_asc'],l=['A–Z','Nr ↑','Menge ↓','Menge ↑'],i=o.indexOf(iSort);iSort=o[(i+1)%4];document.getElementById('sort-i-lbl').textContent=l[(i+1)%4];renderInventur();}
+function renderInventur(){
+  const q=(document.getElementById('inv-search').value||'').toLowerCase();
+  let list=db.artikel.filter(a=>!q||a.name.toLowerCase().includes(q)||a.id.toLowerCase().includes(q));
+  if(iSort==='qty_desc')list.sort((a,b)=>getBestand(b.id)-getBestand(a.id));
+  else if(iSort==='qty_asc')list.sort((a,b)=>getBestand(a.id)-getBestand(b.id));
+  else if(iSort==='id_asc')list.sort((a,b)=>a.id.localeCompare(b.id));
+  else list.sort((a,b)=>a.name.localeCompare(b.name));
+  let h='';
+  list.forEach(a=>{const b=getBestand(a.id),ist=db.inventur[a.id]!==undefined?db.inventur[a.id]:'';const diff=ist!==''?Number(ist)-b:'';const dc=diff===''?'':diff<0?'dn':diff>0?'dp':'dz';h+=`<div class="inv-row"><div style="font-size:13px">${KI[a.kat]||'📦'}</div><div class="art-info"><div class="art-name" style="font-size:11px">${a.name}</div><div class="art-meta"><span class="badge bb" style="margin-right:4px">${a.id}</span>Soll: ${b} ${a.einheit}</div></div><input class="inv-input" type="number" placeholder="${b}" value="${ist}" onchange="setInv('${a.id}',this.value)" oninput="setInv('${a.id}',this.value)"><div class="${dc}" style="width:32px;text-align:right">${diff===''?'—':(diff>0?'+':'')+diff}</div></div>`;});
+  document.getElementById('inv-list').innerHTML=h||'<div style="color:var(--muted);font-size:13px;padding:8px 0">Keine Artikel</div>';
+  updateInvTotal();
+}
+function setInv(id,val){db.inventur[id]=val===''?undefined:Number(val);updateInvTotal();}
+function updateInvTotal(){let t=0;db.artikel.forEach(a=>{if(db.inventur[a.id]!==undefined)t+=(Number(db.inventur[a.id])-getBestand(a.id))*a.preis;});const el=document.getElementById('inv-diff-tot');el.textContent=fCHF(t);el.style.color=t<0?'var(--danger)':t>0?'var(--warn)':'var(--accent2)';}
+function saveInventur(){saveDB();showToast('✓ Inventur gespeichert','success');}
+
+// CSV EXPORT
+// ══════════════════════════════════════════
+// EXCEL EXPORT (xlsx via SheetJS)
+// ══════════════════════════════════════════
+function loadSheetJS(cb) {
+  if (window.XLSX) { cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = cb; document.head.appendChild(s);
+}
+
+function exportCSV() { exportExcelBackup(); } // keep alias
+
+function exportExcelBackup() {
+  loadSheetJS(() => {
+    const wb = XLSX.utils.book_new();
+    const today = new Date().toLocaleDateString('de-CH');
+
+    // ── Tab 1: Stammdaten ──
+    const sdRows = [['Artikel-Nr','Bezeichnung','Kategorie','Einheit','Einkaufspreis CHF','Mindestbestand','MHD-Warnfrist (Tage)','Lieferant']];
+    db.artikel.forEach(a => sdRows.push([a.id,a.name,a.kat,a.einheit,a.preis,a.min,a.warnfrist,a.lieferant]));
+    const wsSd = XLSX.utils.aoa_to_sheet(sdRows);
+    wsSd['!cols'] = [{wch:12},{wch:35},{wch:14},{wch:6},{wch:16},{wch:14},{wch:18},{wch:22}];
+    XLSX.utils.book_append_sheet(wb, wsSd, 'Stammdaten');
+
+    // ── Tab 2: Wareneingang ──
+    const weRows = [['Datum','Artikel-Nr','Bezeichnung','Lieferanten-Charge','Interne Charge','MHD','Menge','Einheit','QS-Freigabe','Lieferschein-Nr','Gebucht von']];
+    db.we.forEach(e => {
+      const a = db.artikel.find(x=>x.id===e.artikelId);
+      weRows.push([e.datum,e.artikelId,a?.name||'',e.charge||'',e.charge||'',e.mhd||'',e.menge,a?.einheit||'Stk',e.qs||'',e.ls||'',e.durch||'']);
+    });
+    const wsWe = XLSX.utils.aoa_to_sheet(weRows);
+    wsWe['!cols'] = [{wch:11},{wch:12},{wch:32},{wch:16},{wch:16},{wch:12},{wch:7},{wch:6},{wch:14},{wch:16},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, wsWe, 'Wareneingang');
+
+    // ── Tab 3: Warenausgang ──
+    const waRows = [['Datum','Artikel-Nr','Bezeichnung','Charge','Menge','Einheit','Empfänger/Kunde','Lieferschein-Nr','Verwendungszweck','Gebucht von']];
+    db.wa.forEach(e => {
+      const a = db.artikel.find(x=>x.id===e.artikelId);
+      waRows.push([e.datum,e.artikelId,a?.name||'',e.charge||'',e.menge,a?.einheit||'Stk',e.empf||'',e.ls||'',e.vz||'',e.durch||'']);
+    });
+    const wsWa = XLSX.utils.aoa_to_sheet(waRows);
+    wsWa['!cols'] = [{wch:11},{wch:12},{wch:32},{wch:16},{wch:7},{wch:6},{wch:24},{wch:16},{wch:16},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, wsWa, 'Warenausgang');
+
+    // ── Tab 4: Bestand ──
+    const bRows = [['Artikel-Nr','Bezeichnung','Kategorie','Einheit','Bestand','Lagerwert CHF','Mindestbestand','Status','Nächstes MHD','MHD-Status']];
+    db.artikel.forEach(a => {
+      const b = getBestand(a.id), m = getMHD(a.id);
+      const ms = mhdSt(m, a.warnfrist);
+      const bs = b<=0?'LEER':b<a.min?'UNTER MINIMUM':b<a.min*1.2?'KNAPP':'OK';
+      bRows.push([a.id,a.name,a.kat,a.einheit,b,+(b*a.preis).toFixed(2),a.min,bs,m?new Date(m).toLocaleDateString('de-CH'):'—',ms==='none'?'—':ms.toUpperCase()]);
+    });
+    const wsBe = XLSX.utils.aoa_to_sheet(bRows);
+    wsBe['!cols'] = [{wch:12},{wch:35},{wch:14},{wch:6},{wch:8},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, wsBe, 'Bestand');
+
+    // ── Tab 5: Aufträge ──
+    const ordRows = [['Auftragsnr./LS','Kunde','Datum','Artikel-Nr','Bezeichnung','Charge','Menge','Einheit','Verwendung','Gebucht von']];
+    // Group by ls/empf
+    const grouped = {};
+    db.wa.forEach(e => {
+      const key = (e.ls||'—')+'||'+(e.empf||'—');
+      if(!grouped[key]) grouped[key]=[];
+      grouped[key].push(e);
+    });
+    Object.values(grouped).forEach(group => {
+      group.forEach(e => {
+        const a = db.artikel.find(x=>x.id===e.artikelId);
+        ordRows.push([e.ls||'—',e.empf||'—',e.datum,e.artikelId,a?.name||'',e.charge||'',e.menge,a?.einheit||'Stk',e.vz||'',e.durch||'']);
+      });
+      ordRows.push(['','','','','','','','','','']); // spacer
+    });
+    const wsOrd = XLSX.utils.aoa_to_sheet(ordRows);
+    wsOrd['!cols'] = [{wch:16},{wch:26},{wch:11},{wch:12},{wch:32},{wch:16},{wch:7},{wch:6},{wch:14},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, wsOrd, 'Aufträge');
+
+    // ── Tab 6: Konfektionierung ──
+    const kRows = [['Datum','Bulk-Artikel-Nr','Bulk-Bezeichnung','Eingangscharge Bulk','Verbrauchte Menge','Fertig-Artikel-Nr','Fertig-Bezeichnung','Neue Charge','Anzahl Flaschen','Neues MHD','Abfüllung durch','Verantwortlich']];
+    (db.konfektionierung||[]).forEach(k => {
+      const bulkA = db.artikel.find(x=>x.id===k.bulkArtikelId);
+      const fertA = db.artikel.find(x=>x.id===k.fertigArtikelId);
+      kRows.push([k.datum,k.bulkArtikelId,bulkA?.name||'',k.bulkCharge,k.bulkMenge,k.fertigArtikelId,fertA?.name||'',k.fertigCharge,k.fertigMenge,k.fertigMhd?new Date(k.fertigMhd).toLocaleDateString('de-CH'):'',k.dienstleister==='intern'?'Intern':k.dlName||'Dienstleister',k.durch||'']);
+    });
+    const wsKonf = XLSX.utils.aoa_to_sheet(kRows);
+    wsKonf['!cols'] = [{wch:11},{wch:14},{wch:30},{wch:18},{wch:16},{wch:14},{wch:30},{wch:18},{wch:14},{wch:12},{wch:20},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, wsKonf, 'Konfektionierung');
+
+    // ── Tab 7: Inventur ──
+    const invRows = [['Artikel-Nr','Bezeichnung','Kategorie','Einheit','SOLL-Bestand','IST-Bestand','Differenz','Einkaufspreis CHF','Differenz CHF']];
+    db.artikel.forEach(a => {
+      const soll = getBestand(a.id);
+      const ist = db.inventur[a.id]!==undefined ? db.inventur[a.id] : '';
+      const diff = ist!=='' ? Number(ist)-soll : '';
+      invRows.push([a.id,a.name,a.kat,a.einheit,soll,ist===''?'':ist,diff===''?'':diff,a.preis,diff!==''?+(diff*a.preis).toFixed(2):'']);
+    });
+    const wsInv = XLSX.utils.aoa_to_sheet(invRows);
+    wsInv['!cols'] = [{wch:12},{wch:35},{wch:14},{wch:6},{wch:12},{wch:12},{wch:10},{wch:16},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, wsInv, 'Inventur');
+
+    const fname = 'SwissVitale_Backup_' + new Date().toISOString().split('T')[0] + '.xlsx';
+    XLSX.writeFile(wb, fname);
+    // Update last backup timestamp
+    localStorage.setItem('sv_last_backup', new Date().toISOString());
+    updateBackupReminder();
+    showToast('📥 Excel-Backup erstellt','success');
+  });
+}
+
+// ── CHARGE RÜCKVERFOLGUNG EXCEL ──────────────────────
+function exportChargeExcel() {
+  const q = document.getElementById('rv3-input').value.trim();
+  if (!q) return;
+  loadSheetJS(() => {
+    const wb = XLSX.utils.book_new();
+    const rows = buildChainRows(q);
+    if (!rows.length) { showToast('Keine Daten für diese Charge','error'); return; }
+
+    const sheet = [['Ebene','Datum','Typ','Artikel-Nr','Bezeichnung','Charge','Menge','Einheit','Info','Gebucht von']];
+    rows.forEach(r => sheet.push(r));
+    const ws = XLSX.utils.aoa_to_sheet(sheet);
+    ws['!cols'] = [{wch:12},{wch:11},{wch:14},{wch:12},{wch:32},{wch:18},{wch:8},{wch:6},{wch:28},{wch:16}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Rückverfolgung');
+
+    // Summary sheet
+    const sum = [['Rückverfolgung für Charge: ' + q],['Erstellt am: ' + new Date().toLocaleDateString('de-CH')],[''],[
+      'Diese Datei dokumentiert den vollständigen Warenfluss dieser Charge',
+      'von der Eingangscharge (Rohstoff/Bulk) über die Konfektionierung',
+      'bis zum Endkunden. Für Rückruf-Dokumentation geeignet.'
+    ]];
+    const wsSm = XLSX.utils.aoa_to_sheet(sum);
+    XLSX.utils.book_append_sheet(wb, wsSm, 'Info');
+
+    XLSX.writeFile(wb, 'Rueckverfolgung_' + q.replace(/[^a-zA-Z0-9]/g,'_') + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('📥 Rückverfolgungs-Excel exportiert','success');
+  });
+}
+
+function buildChainRows(q) {
+  const ql = q.toLowerCase();
+  const rows = [];
+
+  // Find all WE matching charge
+  const weMatches = db.we.filter(e=>(e.charge||'').toLowerCase().includes(ql));
+  weMatches.forEach(e=>{
+    const a=db.artikel.find(x=>x.id===e.artikelId);
+    rows.push(['1 – Wareneingang',e.datum,'WE',e.artikelId,a?.name||'',e.charge,e.menge,a?.einheit||'Stk','QS: '+(e.qs||'—')+' · LS: '+(e.ls||'—'),e.durch||'']);
+  });
+
+  // Find konfektionierung where bulk charge matches → get fertig charges
+  const kFromBulk = (db.konfektionierung||[]).filter(k=>(k.bulkCharge||'').toLowerCase().includes(ql));
+  kFromBulk.forEach(k=>{
+    const bulkA=db.artikel.find(x=>x.id===k.bulkArtikelId);
+    const fertA=db.artikel.find(x=>x.id===k.fertigArtikelId);
+    rows.push(['2 – Konfektionierung',k.datum,'KONF',k.fertigArtikelId,fertA?.name||'',k.fertigCharge,k.fertigMenge,fertA?.einheit||'Stk','Bulk: '+k.bulkCharge+' · '+( k.dienstleister==='intern'?'Intern':k.dlName||'DL'),k.durch||'']);
+    // Now find WA for this fertig charge
+    const waFertig = db.wa.filter(e=>(e.charge||'')===(k.fertigCharge||''));
+    waFertig.forEach(e=>{
+      const a=db.artikel.find(x=>x.id===e.artikelId);
+      rows.push(['3 – Ausgang an Kunde',e.datum,'WA',e.artikelId,a?.name||'',e.charge,e.menge,a?.einheit||'Stk','Kunde: '+(e.empf||'—')+' · LS: '+(e.ls||'—'),e.durch||'']);
+    });
+  });
+
+  // Find konfektionierung where fertig charge matches → trace back to bulk
+  const kFromFertig = (db.konfektionierung||[]).filter(k=>(k.fertigCharge||'').toLowerCase().includes(ql));
+  kFromFertig.forEach(k=>{
+    const bulkA=db.artikel.find(x=>x.id===k.bulkArtikelId);
+    const fertA=db.artikel.find(x=>x.id===k.fertigArtikelId);
+    if(!kFromBulk.find(x=>x.id===k.id)) {
+      // Show the bulk source
+      const weBulk=db.we.filter(e=>e.charge===k.bulkCharge);
+      weBulk.forEach(e=>{
+        const a=db.artikel.find(x=>x.id===e.artikelId);
+        rows.push(['1 – Ursprung Bulk',e.datum,'WE',e.artikelId,a?.name||'',e.charge,e.menge,a?.einheit||'Stk','QS: '+(e.qs||'—')+' · LS: '+(e.ls||'—'),e.durch||'']);
+      });
+      rows.push(['2 – Konfektionierung',k.datum,'KONF',k.fertigArtikelId,fertA?.name||'',k.fertigCharge,k.fertigMenge,fertA?.einheit||'Stk','Bulk: '+k.bulkCharge,k.durch||'']);
+    }
+    // WA for this fertig charge
+    const waFertig=db.wa.filter(e=>(e.charge||'')===(k.fertigCharge||''));
+    waFertig.forEach(e=>{
+      const a=db.artikel.find(x=>x.id===e.artikelId);
+      rows.push(['3 – Ausgang an Kunde',e.datum,'WA',e.artikelId,a?.name||'',e.charge,e.menge,a?.einheit||'Stk','Kunde: '+(e.empf||'—')+' · LS: '+(e.ls||'—'),e.durch||'']);
+    });
+  });
+
+  // Direct WA matches (if no konfektionierung involved)
+  const waMatches = db.wa.filter(e=>(e.charge||'').toLowerCase().includes(ql));
+  waMatches.forEach(e=>{
+    if(!kFromBulk.find(k=>k.fertigCharge===e.charge) && !kFromFertig.find(k=>k.fertigCharge===e.charge)) {
+      const a=db.artikel.find(x=>x.id===e.artikelId);
+      rows.push(['Direkt – Ausgang',e.datum,'WA',e.artikelId,a?.name||'',e.charge,e.menge,a?.einheit||'Stk','Kunde: '+(e.empf||'—')+' · LS: '+(e.ls||'—'),e.durch||'']);
+    }
+  });
+
+  return rows;
+}
+
+// FULLSCREEN SCANNER + OCR
+let camStream=null,lastEx={};
+
+async function openScanner(){
+  document.getElementById('scanner-fs').classList.add('open');
+  document.getElementById('cam-result').classList.remove('show');
+  document.getElementById('cam-proc').classList.remove('show');
+  try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:'environment'},width:{ideal:3840},height:{ideal:2160}}});}
+  catch(e){try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});}catch(e2){camStream=await navigator.mediaDevices.getUserMedia({video:true});}}
+  document.getElementById('cam-vid').srcObject=camStream;
+}
+function closeScanner(){
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  document.getElementById('scanner-fs').classList.remove('open');
+  document.getElementById('cam-vid').srcObject=null;
+}
+async function captureAndOCR(){
+  const vid=document.getElementById('cam-vid'),cvs=document.getElementById('cam-cvs');
+  cvs.width=vid.videoWidth||1920;cvs.height=vid.videoHeight||1080;
+  cvs.getContext('2d').drawImage(vid,0,0);
+  document.getElementById('cam-proc').classList.add('show');
+  document.getElementById('cam-result').classList.remove('show');
+  try{
+    const r=await Tesseract.recognize(cvs,'deu+eng',{logger:m=>{if(m.status==='recognizing text')document.getElementById('ocr-prog').textContent='Texterkennung… '+Math.round(m.progress*100)+'%';}});
+    document.getElementById('cam-proc').classList.remove('show');
+    parseOCR(r.data.text);
+  }catch(e){document.getElementById('cam-proc').classList.remove('show');showToast('OCR Fehler – bitte manuell eingeben','error');closeScanner();}
+}
+function parseOCR(text){
+  document.getElementById('result-raw').textContent=text.replace(/\n+/g,' ').substring(0,250)+'…';
+  const ex={};
+  // Artikel-Code: SV##### or 5-digit numeric
+  const cm=text.match(/\b(SV\d{4,6}[-A-Z]*|\d{5}[-A-Z]*|BIOV\d+|OV\d+)\b/i);
+  if(cm){const f=db.artikel.find(a=>a.id.toUpperCase()===cm[1].toUpperCase());if(f)ex.artikelId=f.id;else ex.code=cm[1];}
+  // BATCH NO
+  const bm=text.match(/(?:BATCH\s*NO\.?|LOT\s*NO\.?|LOT|Charge)[:\s#]*([A-Z0-9][A-Z0-9.\-\/]{3,20})/i);
+  if(bm)ex.charge=bm[1].trim();
+  // BEST BEFORE: DD/MM/YYYY
+  const dm=text.match(/(?:BEST\s*BEFORE|BBD|MHD)[^\d]*(\d{2}[\/.]\d{2}[\/.]\d{4}|\d{4}[\-\/]\d{2}[\-\/]\d{2}|\d{4}\s+\d{2})/i);
+  if(dm){let d=dm[1].trim();if(/^\d{2}[\/.]\d{2}[\/.]\d{4}$/.test(d)){const p=d.split(/[\/.]/);ex.mhd=`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;}else if(/^\d{4}[\-\/]\d{2}[\-\/]\d{2}$/.test(d)){ex.mhd=d.replace(/[\/]/g,'-').substring(0,10);}else if(/^\d{4}\s+\d{2}$/.test(d)){const p=d.split(/\s+/);ex.mhd=`${p[0]}-${p[1].padStart(2,'0')}-01`;}}
+  // COUNT
+  const count=text.match(/(?:COUNT|MENGE|QTY)[:\s]*(\d+)/i)||text.match(/\b(\d+)\s*[xX]\s*\d+\s*[Mm][Ll]/);
+  if(count)ex.menge=count[1];
+  // Name-based fallback
+  if(!ex.artikelId){const tu=text.toUpperCase().replace(/\n/g,' ');for(const a of db.artikel){const ws=a.name.toUpperCase().split(' ').filter(w=>w.length>4);if(ws.filter(w=>tu.includes(w)).length>=2){ex.artikelId=a.id;break;}}}
+  lastEx=ex;
+  const fields=[['Artikel-Code',ex.artikelId||ex.code||null,!!ex.artikelId],['Batch/Charge',ex.charge||null,!!ex.charge],['Best Before',ex.mhd?fDate(ex.mhd):null,!!ex.mhd],['Menge',ex.menge||null,!!ex.menge]];
+  document.getElementById('result-fields').innerHTML=fields.map(([l,v,ok])=>`<div class="rf"><div class="rf-l">${l}</div><div class="rf-v${ok?'':' miss'}">${v||'Nicht erkannt'}</div></div>`).join('');
+  document.getElementById('cam-result').classList.add('show');
+}
+function applyAndClose(){
+  const e=lastEx;
+  if(e.artikelId){selectWeArtikel(e.artikelId);}else{document.getElementById('we-artikel').value='';}
+  if(e.charge)document.getElementById('we-charge').value=e.charge;
+  if(e.mhd)document.getElementById('we-mhd').value=e.mhd;
+  if(e.menge)document.getElementById('we-menge').value=e.menge;
+  closeScanner();showToast('✓ Felder übernommen – bitte prüfen & ergänzen','success');
+}
+function rescan(){document.getElementById('cam-result').classList.remove('show');}
+
+// BEWEGUNGEN
+let bewFilter='',bewSort='date_desc';
+
+function bewTab(t) {
+  ['bewegungen','rueckv'].forEach(x => {
+    document.getElementById('bp-'+x).style.display = x===t ? 'block' : 'none';
+    document.getElementById('bt-'+x).classList.toggle('active', x===t);
+  });
+}
+
+function renderRVFull() {
+  const q = (document.getElementById('rv-charge-input').value||'').trim();
+  const el = document.getElementById('rv-full-result');
+  const expBtn = document.getElementById('rv-full-export');
+  if (!q) { el.innerHTML=''; expBtn.style.display='none'; return; }
+
+  const rows = buildChainRows(q);
+
+  if (!rows.length) {
+    el.innerHTML = `<div class="card"><div style="color:var(--muted);font-size:13px;padding:12px 0;text-align:center">Keine Einträge für Charge <b>${q}</b></div></div>`;
+    expBtn.style.display='none';
+    return;
+  }
+
+  expBtn.style.display='block';
+
+  // Restbestand dieser Charge berechnen
+  const eingang = db.we.filter(e=>(e.charge||'').toLowerCase().includes(q.toLowerCase())).reduce((s,e)=>s+Number(e.menge),0);
+  const ausgang = db.wa.filter(e=>(e.charge||'').toLowerCase().includes(q.toLowerCase())).reduce((s,e)=>s+Number(e.menge),0);
+  const rest = eingang - ausgang;
+
+  let h = '';
+
+  // Summary card
+  h += `<div class="card" style="border-color:var(--accent);margin-bottom:10px">
+    <div class="card-title">Zusammenfassung</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div class="kpi" style="padding:10px"><div class="kpi-label">Eingang</div><div class="kpi-value accent" style="font-size:18px">+${eingang}</div></div>
+      <div class="kpi" style="padding:10px"><div class="kpi-label">Ausgang</div><div class="kpi-value danger" style="font-size:18px">−${ausgang}</div></div>
+      <div class="kpi" style="padding:10px"><div class="kpi-label">Restbestand</div><div class="kpi-value ${rest>0?'green':'warn'}" style="font-size:18px">${rest}</div></div>
+    </div>
+  </div>`;
+
+  // Chain rows
+  h += '<div class="card">';
+  const lvlColors = {
+    'WE':'var(--warn)', 'KONF':'var(--accent)', 'WA':'var(--accent2)'
+  };
+  const lvlIcons = {'WE':'📥','KONF':'⚗️','WA':'📤'};
+
+  rows.forEach((r, i) => {
+    const typ = r[2];
+    const color = lvlColors[typ] || 'var(--text)';
+    const icon = lvlIcons[typ] || '📦';
+    const lvl = r[0];
+    const isLast = i === rows.length-1;
+
+    h += `<div class="art-row" style="cursor:default;${isLast?'border-bottom:none':''}">
+      <div class="art-icon" style="background:rgba(61,156,240,.08);font-size:18px;flex-shrink:0">${icon}</div>
+      <div class="art-info">
+        <div style="font-size:10px;color:${color};font-family:var(--ff-mono);font-weight:600;margin-bottom:2px;text-transform:uppercase">${lvl}</div>
+        <div class="art-name">${r[4]}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:3px;display:flex;flex-direction:column;gap:2px">
+          <span>Charge: <b style="color:${color}">${r[5]}</b> · ${fDate(r[1])}</span>
+          <span>${r[8]}</span>
+          ${r[9] ? `<span style="color:var(--accent)">👤 ${r[9]}</span>` : ''}
+        </div>
+      </div>
+      <div class="art-right" style="flex-shrink:0">
+        <div class="art-qty" style="color:${color}">${typ==='WA'?'−':'+'} ${r[6]}</div>
+        <div class="art-unit">${r[7]}</div>
+      </div>
+    </div>`;
+  });
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+function exportChargeExcelFromMain() {
+  const q = document.getElementById('rv-charge-input').value.trim();
+  if (q) {
+    // Temporarily sync to rv3-input and call existing export
+    document.getElementById('rv3-input').value = q;
+    exportChargeExcel();
+  }
+}
+function setBewF(f,el){bewFilter=f;document.querySelectorAll('#bew-filters .filter-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderBewegungen();}
+function toggleSortBew(){const o=['date_desc','date_asc','name'],l=['Neu','Alt','Name'],i=o.indexOf(bewSort);bewSort=o[(i+1)%3];document.getElementById('sort-bew-lbl').textContent=l[(i+1)%3];document.getElementById('sort-bew-btn').classList.add('active');renderBewegungen();}
+function renderBewegungen(){
+  const q=(document.getElementById('bew-search').value||'').toLowerCase();
+  let all=[
+    ...db.we.map(e=>({...e,typ:'WE'})),
+    ...db.wa.map(e=>({...e,typ:'WA'}))
+  ];
+  if(bewFilter) all=all.filter(e=>e.typ===bewFilter);
+  if(q) all=all.filter(e=>{
+    const a=db.artikel.find(x=>x.id===e.artikelId);
+    return e.artikelId.toLowerCase().includes(q)
+      ||(a&&a.name.toLowerCase().includes(q))
+      ||(e.charge&&e.charge.toLowerCase().includes(q))
+      ||(e.ls&&e.ls.toLowerCase().includes(q))
+      ||(e.empf&&e.empf.toLowerCase().includes(q));
+  });
+  if(bewSort==='date_asc') all.sort((a,b)=>a.datum.localeCompare(b.datum));
+  else if(bewSort==='name') all.sort((a,b)=>{const na=db.artikel.find(x=>x.id===a.artikelId)?.name||'';const nb=db.artikel.find(x=>x.id===b.artikelId)?.name||'';return na.localeCompare(nb);});
+  else all.sort((a,b)=>b.datum.localeCompare(a.datum));
+  let h='';
+  if(!all.length){h='<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Keine Bewegungen gefunden</div>';}
+  all.forEach(e=>{
+    const a=db.artikel.find(x=>x.id===e.artikelId);
+    const isWE=e.typ==='WE';
+    const info=isWE?`QS: ${e.qs||'—'}  ·  LS: ${e.ls||'—'}`:`${e.empf||'—'}  ·  LS: ${e.ls||'—'}`;
+    h+=`<div class="art-row" style="cursor:default">
+      <div class="art-icon" style="background:${isWE?'rgba(0,229,160,.12)':'rgba(240,64,64,.12)'}">${isWE?'📥':'📤'}</div>
+      <div class="art-info">
+        <div class="art-name">${a?.name||e.artikelId}</div>
+        <div class="art-meta" style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
+          <span style="display:flex;gap:4px;flex-wrap:wrap"><span class="badge bb">${e.artikelId}</span><span class="badge ${isWE?'bg':'bd'}">${isWE?'EINGANG':'AUSGANG'}</span></span>
+          <span>Charge: ${e.charge||'—'}  ·  ${fDate(e.datum)}</span>
+          <span>${info}</span>
+          ${e.durch?`<span style='color:var(--accent);font-size:10px'>👤 ${e.durch}</span>`:''}
+        </div>
+      </div>
+      <div class="art-right">
+        <div class="art-qty" style="color:${isWE?'var(--accent2)':'var(--danger)'}">${isWE?'+':'−'}${e.menge}</div>
+        <div class="art-unit">${a?.einheit||'Stk'}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('bew-list').innerHTML=`<div class="card">${h}</div>`;
+}
+
+
+// ══════════════════════════════════════════
+// KONFEKTIONIERUNG
+// ══════════════════════════════════════════
+let kBulkId=null, kFertigId=null;
+
+function kTab(t){
+  ['neu','liste','rv'].forEach(x=>{
+    document.getElementById('kp-'+x).style.display=x===t?'block':'none';
+    document.getElementById('kt-'+x).classList.toggle('active',x===t);
+  });
+  if(t==='liste') renderKonfListe();
+}
+
+document.getElementById('konf-dienstleister').addEventListener('change',function(){
+  document.getElementById('konf-dl-name-wrap').style.display=this.value==='dienstleister'?'block':'none';
+});
+
+function filterKonfBulk(){
+  const q=document.getElementById('konf-bulk-search').value.toLowerCase().trim();
+  const dd=document.getElementById('konf-bulk-dd');
+  if(!q){dd.style.display='none';return;}
+  const matches=db.artikel.filter(a=>(a.name.toLowerCase().includes(q)||a.id.toLowerCase().includes(q))).slice(0,8);
+  if(!matches.length){dd.style.display='none';return;}
+  dd.innerHTML=matches.map(a=>{
+    const b=getBestand(a.id);
+    return `<div class="wa-dropdown-item" onclick="selectKonfBulk('${a.id}')">
+      <div style="font-size:13px">${KI[a.kat]||'📦'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">${a.id} · Bestand: ${b} ${a.einheit}</div>
+      </div>
+    </div>`;
+  }).join('');
+  dd.style.display='block';
+}
+
+function selectKonfBulk(id){
+  kBulkId=id;
+  const a=db.artikel.find(x=>x.id===id);
+  document.getElementById('konf-bulk-search').value='';
+  document.getElementById('konf-bulk-dd').style.display='none';
+  const sel=document.getElementById('konf-bulk-sel');
+  sel.style.display='block';
+  document.getElementById('konf-bulk-name').textContent=a.name;
+  document.getElementById('konf-bulk-info').textContent=a.id+' · Bestand: '+getBestand(id)+' '+a.einheit;
+  const cg=getChargen(id);
+  document.getElementById('konf-bulk-charge').innerHTML=cg.length
+    ?cg.map(c=>`<option value="${c.charge}">${c.charge} — MHD ${fDate(c.mhd)}</option>`).join('')
+    :'<option>Keine Chargen</option>';
+}
+
+function filterKonfFertig(){
+  const q=document.getElementById('konf-fertig-search').value.toLowerCase().trim();
+  const dd=document.getElementById('konf-fertig-dd');
+  if(!q){dd.style.display='none';return;}
+  const matches=db.artikel.filter(a=>(a.name.toLowerCase().includes(q)||a.id.toLowerCase().includes(q))).slice(0,8);
+  if(!matches.length){dd.style.display='none';return;}
+  dd.innerHTML=matches.map(a=>`<div class="wa-dropdown-item" onclick="selectKonfFertig('${a.id}')">
+    <div style="font-size:13px">${KI[a.kat]||'📦'}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">${a.id}</div>
+    </div>
+  </div>`).join('');
+  dd.style.display='block';
+}
+
+function selectKonfFertig(id){
+  kFertigId=id;
+  const a=db.artikel.find(x=>x.id===id);
+  document.getElementById('konf-fertig-search').value='';
+  document.getElementById('konf-fertig-dd').style.display='none';
+  const sel=document.getElementById('konf-fertig-sel');
+  sel.style.display='block';
+  document.getElementById('konf-fertig-name').textContent=a.name;
+  document.getElementById('konf-fertig-info').textContent=a.id+' · Aktueller Bestand: '+getBestand(id)+' '+a.einheit;
+}
+
+function submitKonfektionierung(){
+  if(!kBulkId){showToast('Bulk-Artikel wählen','error');return;}
+  if(!kFertigId){showToast('Fertigprodukt wählen','error');return;}
+  const bulkCharge=document.getElementById('konf-bulk-charge').value;
+  const bulkMenge=Number(document.getElementById('konf-bulk-menge').value);
+  const fertigCharge=document.getElementById('konf-fertig-charge').value.trim();
+  const fertigMenge=Number(document.getElementById('konf-fertig-menge').value);
+  const fertigMhd=document.getElementById('konf-fertig-mhd').value;
+  const dienstleister=document.getElementById('konf-dienstleister').value;
+  const dlName=document.getElementById('konf-dl-name').value.trim();
+
+  if(!bulkCharge||!bulkMenge){showToast('Bulk-Charge und Menge eingeben','error');return;}
+  if(!fertigCharge||!fertigMenge||!fertigMhd){showToast('Neue Charge, Menge und MHD eingeben','error');return;}
+
+  const bulkBestand=getBestand(kBulkId);
+  if(bulkMenge>bulkBestand){showToast(`Bulk-Menge ${bulkMenge} > Bestand ${bulkBestand}`,'error');return;}
+
+  const k={
+    id:'konf'+Date.now(), datum:new Date().toISOString().split('T')[0],
+    bulkArtikelId:kBulkId, bulkCharge, bulkMenge,
+    fertigArtikelId:kFertigId, fertigCharge, fertigMenge,
+    fertigMhd, dienstleister, dlName:dienstleister==='dienstleister'?dlName:'',
+    durch:(currentUser?currentUser.name:'Unbekannt')
+  };
+
+  // 1. Bulk-Abgang verbuchen
+  db.wa.push({id:'wa_konf'+Date.now(),datum:k.datum,artikelId:kBulkId,
+    charge:bulkCharge,menge:bulkMenge,
+    empf:dienstleister==='intern'?'Interne Konfektionierung':(dlName||'Dienstleister'),
+    ls:'KONF-'+k.id.slice(-6),vz:'Set-Bildung',durch:k.durch});
+
+  // 2. Fertigprodukt-Eingang verbuchen (als freigegebener WE)
+  db.we.push({id:'we_konf'+Date.now(),datum:k.datum,artikelId:kFertigId,
+    charge:fertigCharge,mhd:fertigMhd,menge:fertigMenge,
+    ls:'KONF-'+k.id.slice(-6),qs:'Freigegeben',durch:k.durch});
+
+  // 3. Konfektionierungsprotokoll speichern
+  if(!db.konfektionierung) db.konfektionierung=[];
+  db.konfektionierung.push(k);
+
+  saveDB();
+  showToast('✓ Produktion erfasst – Bulk ausgebucht, Flaschen eingebucht','success');
+
+  // Reset form
+  kBulkId=null; kFertigId=null;
+  document.getElementById('konf-bulk-sel').style.display='none';
+  document.getElementById('konf-fertig-sel').style.display='none';
+  document.getElementById('konf-bulk-search').value='';
+  document.getElementById('konf-fertig-search').value='';
+  ['konf-bulk-menge','konf-fertig-charge','konf-fertig-menge','konf-fertig-mhd','konf-dl-name'].forEach(i=>{
+    const el=document.getElementById(i); if(el) el.value='';
+  });
+  renderDashboard();
+}
+
+function renderKonfListe(){
+  const q=(document.getElementById('konf-list-search').value||'').toLowerCase();
+  const list=(db.konfektionierung||[]).filter(k=>{
+    if(!q) return true;
+    return (k.bulkCharge||'').toLowerCase().includes(q)||(k.fertigCharge||'').toLowerCase().includes(q)||
+      (db.artikel.find(x=>x.id===k.bulkArtikelId)?.name||'').toLowerCase().includes(q)||
+      (db.artikel.find(x=>x.id===k.fertigArtikelId)?.name||'').toLowerCase().includes(q);
+  }).slice().reverse();
+  if(!list.length){
+    document.getElementById('konf-list').innerHTML='<div class="card"><div style="color:var(--muted);font-size:13px;padding:8px 0;text-align:center">Noch keine Produktionen erfasst</div></div>';
+    return;
+  }
+  let h='';
+  list.forEach(k=>{
+    const bulkA=db.artikel.find(x=>x.id===k.bulkArtikelId);
+    const fertA=db.artikel.find(x=>x.id===k.fertigArtikelId);
+    h+=`<div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <div style="font-family:var(--ff-mono);font-size:10px;color:var(--muted)">${fDate(k.datum)}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono)">${k.dienstleister==='intern'?'Intern':k.dlName||'Dienstleister'} · ${k.durch||'—'}</div>
+      </div>
+      <div class="chain-item bulk">
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-bottom:2px">BULK EINGANG</div>
+        <div style="font-size:13px;font-weight:500">${bulkA?.name||k.bulkArtikelId}</div>
+        <div style="font-size:11px;color:var(--warn);font-family:var(--ff-mono);margin-top:2px">${k.bulkCharge} · ${k.bulkMenge} ${bulkA?.einheit||'L'} verbraucht</div>
+      </div>
+      <div class="konf-arrow">↓</div>
+      <div class="chain-item fertig">
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-bottom:2px">FERTIGPRODUKT</div>
+        <div style="font-size:13px;font-weight:500">${fertA?.name||k.fertigArtikelId}</div>
+        <div style="font-size:11px;color:var(--accent2);font-family:var(--ff-mono);margin-top:2px">${k.fertigCharge} · ${k.fertigMenge} Stk · MHD ${fDate(k.fertigMhd)}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('konf-list').innerHTML=h;
+}
+
+function renderRV3(){
+  const q=document.getElementById('rv3-input').value.trim();
+  const el=document.getElementById('rv3-result');
+  const expBtn=document.getElementById('rv3-export-btn');
+  if(!q){el.innerHTML='';expBtn.style.display='none';return;}
+  const rows=buildChainRows(q);
+  if(!rows.length){el.innerHTML='<div class="card"><div style="color:var(--muted);font-size:13px;padding:8px 0;text-align:center">Keine Einträge für diese Charge</div></div>';expBtn.style.display='none';return;}
+  expBtn.style.display='block';
+  let h='<div class="card">';
+  rows.forEach(r=>{
+    const lvl=r[0], typ=r[2];
+    const color=typ==='WE'?'var(--warn)':typ==='KONF'?'var(--accent)':'var(--accent2)';
+    const icon=typ==='WE'?'📥':typ==='KONF'?'⚗️':'📤';
+    h+=`<div class="art-row" style="cursor:default">
+      <div class="art-icon" style="background:rgba(61,156,240,.1);font-size:18px">${icon}</div>
+      <div class="art-info">
+        <div style="font-size:11px;color:${color};font-family:var(--ff-mono);margin-bottom:2px">${lvl}</div>
+        <div class="art-name">${r[4]}</div>
+        <div class="art-meta" style="display:flex;flex-direction:column;gap:1px;margin-top:2px">
+          <span>Charge: <b style="color:${color}">${r[5]}</b> · ${fDate(r[1])}</span>
+          <span>${r[8]}</span>
+          ${r[9]?`<span style="color:var(--accent)">👤 ${r[9]}</span>`:''}
+        </div>
+      </div>
+      <div class="art-right">
+        <div class="art-qty" style="color:${color}">${r[6]}</div>
+        <div class="art-unit">${r[7]}</div>
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+// ══════════════════════════════════════════
+// BACKUP REMINDER
+// ══════════════════════════════════════════
+function updateBackupReminder(){
+  const last=localStorage.getItem('sv_last_backup');
+  const el=document.getElementById('backup-reminder');
+  if(!el) return;
+  if(!last){el.style.display='flex';document.getElementById('backup-days').textContent='Noch kein Backup erstellt';return;}
+  const days=Math.floor((new Date()-new Date(last))/86400000);
+  if(days>=7){el.style.display='flex';document.getElementById('backup-days').textContent=days+' Tage seit letztem Backup';}
+  else{el.style.display='none';}
+}
+
+// UI
+function switchTab(n,btn){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('screen-'+n).classList.add('active');btn.classList.add('active');if(n==='dashboard')renderDashboard();if(n==='bestand')renderBestand();if(n==='inventur')renderInventur();if(n==='ausgang')updateChargen();if(n==='bewegungen')renderBewegungen();if(n==='konf')kTab('neu');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+let tt;function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2800);}
+
+// Init handled by enterApp() after login
+</script>
+
+<!-- CLOUD CONFIG MODAL -->
+<div class="cfg-modal" id="cfg-modal">
+  <div class="cfg-panel">
+    <div class="modal-handle"></div>
+    <div class="modal-title">☁️ Supabase Verbindung</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      Einmalig einrichten – dann synchronisieren alle Geräte automatisch.<br>
+      Die Werte findest du unter <b>supabase.com → Settings → API</b>.
+    </div>
+    <div class="form-group">
+      <label class="form-label">Project URL</label>
+      <input class="form-input" id="cfg-url" placeholder="https://xxxxxxxxxxxx.supabase.co" style="font-family:var(--ff-mono);font-size:12px">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Anon Public Key</label>
+      <input class="form-input" id="cfg-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." style="font-family:var(--ff-mono);font-size:11px">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn btn-primary" style="flex:2" onclick="saveCloudCfg()">Verbinden & testen</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeCloudCfg()">Abbrechen</button>
+    </div>
+    <div id="cfg-test-result" style="font-size:12px;font-family:var(--ff-mono);text-align:center;min-height:18px"></div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">Supabase SQL – einmalig ausführen falls noch nicht gemacht:<br>
+<code style="font-size:9px;color:var(--accent2);background:var(--card);padding:4px 6px;border-radius:5px;display:block;margin-top:4px;white-space:pre-wrap">create table benutzer (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  username text unique not null,
+  password_hash text not null,
+  created_at timestamptz default now()
+);
+alter table benutzer enable row level security;
+create policy "public_rw" on benutzer for all using (true) with check (true);</code></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Daten-Management</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" style="flex:1" onclick="pushAllToCloud()">📤 Lokale Daten hochladen</button>
+        <button class="btn btn-outline btn-sm" style="flex:1" onclick="pullFromCloud()">📥 Cloud-Daten laden</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE CLOUD SYNC
+// ══════════════════════════════════════════
+const CFG_KEY = 'sv_supabase_cfg';
+
+function getCfg() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); } catch(e) { return {}; }
+}
+function saveCfg(cfg) {
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+}
+
+function setCloudStatus(state, text) {
+  const dot = document.getElementById('cloud-dot');
+  const txt = document.getElementById('cloud-status-txt');
+  dot.className = 'cloud-dot ' + state;
+  txt.textContent = text;
+}
+
+async function sbFetch(path, options={}) {
+  const cfg = getCfg();
+  if (!cfg.url || !cfg.key) return null;
+  try {
+    const r = await fetch(cfg.url + '/rest/v1/' + path, {
+      ...options,
+      headers: {
+        'apikey': cfg.key,
+        'Authorization': 'Bearer ' + cfg.key,
+        'Content-Type': 'application/json',
+        'Prefer': options.prefer || '',
+        ...options.headers
+      }
+    });
+    if (!r.ok) { const err = await r.text(); throw new Error(err); }
+    if (r.status === 204) return [];
+    return await r.json();
+  } catch(e) {
+    console.error('Supabase error:', e);
+    return null;
+  }
+}
+
+// Push one WE or WA entry to cloud
+async function pushBewegung(e, typ) {
+  const row = {
+    id: e.id, typ,
+    datum: e.datum,
+    artikel_id: e.artikelId,
+    charge: e.charge || null,
+    mhd: e.mhd || null,
+    menge: e.menge,
+    ls: e.ls || null,
+    qs: e.qs || null,
+    durch: e.durch || null,
+    empf: e.empf || null,
+    vz: e.vz || null
+  };
+  return await sbFetch('bewegungen?on_conflict=id', {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates',
+    body: JSON.stringify(row)
+  });
+}
+
+// Push inventur state
+async function pushInventurEntry(artikelId, istBestand) {
+  return await sbFetch('inventur?on_conflict=artikel_id', {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates',
+    body: JSON.stringify({ artikel_id: artikelId, ist_bestand: istBestand })
+  });
+}
+
+// Pull all data from cloud and merge into local db
+async function pullFromCloud() {
+  const cfg = getCfg();
+  if (!cfg.url || !cfg.key) { showToast('Zuerst Supabase konfigurieren','error'); return; }
+  setCloudStatus('syncing', 'Daten laden…');
+  try {
+    const [bew, inv] = await Promise.all([
+      sbFetch('bewegungen?select=*&order=datum.asc'),
+      sbFetch('inventur?select=*')
+    ]);
+    if (bew === null) { setCloudStatus('error', 'Fehler beim Laden'); return; }
+
+    // Merge bewegungen
+    const weMap = {}, waMap = {};
+    db.we.forEach(e => weMap[e.id] = e);
+    db.wa.forEach(e => waMap[e.id] = e);
+
+    bew.forEach(row => {
+      const e = { id: row.id, datum: row.datum, artikelId: row.artikel_id,
+        charge: row.charge, mhd: row.mhd, menge: row.menge,
+        ls: row.ls, qs: row.qs, durch: row.durch, empf: row.empf, vz: row.vz };
+      if (row.typ === 'WE') weMap[row.id] = e;
+      else waMap[row.id] = e;
+    });
+    db.we = Object.values(weMap);
+    db.wa = Object.values(waMap);
+
+    // Merge inventur
+    if (inv) inv.forEach(row => { db.inventur[row.artikel_id] = row.ist_bestand; });
+
+    saveDB();
+    setCloudStatus('ok', 'Synchronisiert ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
+    showToast('✓ Cloud-Daten geladen','success');
+    renderDashboard();
+    closeCloudCfg();
+  } catch(e) {
+    setCloudStatus('error', 'Sync-Fehler');
+    showToast('Sync fehlgeschlagen','error');
+  }
+}
+
+// Push all local data to cloud
+async function pushAllToCloud() {
+  const cfg = getCfg();
+  if (!cfg.url || !cfg.key) { showToast('Zuerst Supabase konfigurieren','error'); return; }
+  setCloudStatus('syncing', 'Hochladen…');
+  document.getElementById('cfg-test-result').textContent = 'Lade hoch…';
+  try {
+    let ok = 0, fail = 0;
+    for (const e of db.we) { const r = await pushBewegung(e,'WE'); r!==null?ok++:fail++; }
+    for (const e of db.wa) { const r = await pushBewegung(e,'WA'); r!==null?ok++:fail++; }
+    for (const [id, val] of Object.entries(db.inventur)) {
+      if (val !== undefined) await pushInventurEntry(id, val);
+    }
+    setCloudStatus('ok', 'Synchronisiert');
+    document.getElementById('cfg-test-result').textContent = `✓ ${ok} Einträge hochgeladen${fail?', '+fail+' Fehler':''}`;
+    showToast(`✓ ${ok} Einträge hochgeladen`,'success');
+  } catch(e) {
+    setCloudStatus('error', 'Upload-Fehler');
+    document.getElementById('cfg-test-result').textContent = '✗ Fehler: ' + e.message;
+  }
+}
+
+// Auto-push after every local save
+const _origSaveDB = saveDB;
+// Patch saveDB to also sync new entries
+let pendingSync = null;
+function schedulePush() {
+  clearTimeout(pendingSync);
+  pendingSync = setTimeout(async () => {
+    const cfg = getCfg();
+    if (!cfg.url || !cfg.key) return;
+    setCloudStatus('syncing', 'Synchronisiert…');
+    try {
+      // Push last WE and WA (most recent)
+      const lastWE = db.we[db.we.length-1];
+      const lastWA = db.wa[db.wa.length-1];
+      if (lastWE) await pushBewegung(lastWE, 'WE');
+      if (lastWA) await pushBewegung(lastWA, 'WA');
+      setCloudStatus('ok', 'Synchronisiert ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
+    } catch(e) {
+      setCloudStatus('error', 'Sync-Fehler');
+    }
+  }, 800);
+}
+
+// Override saveDB to trigger cloud push
+const origSaveDB2 = window.saveDB;
+window.saveDB = function() {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); document.getElementById('sync-time').textContent=new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}); } catch(e){}
+  schedulePush();
+};
+
+// Polling: pull fresh data every 30 seconds if connected
+setInterval(async () => {
+  const cfg = getCfg();
+  if (!cfg.url || !cfg.key) return;
+  const bew = await sbFetch('bewegungen?select=*&order=datum.asc');
+  if (bew === null) { setCloudStatus('error', 'Verbindungsfehler'); return; }
+  let changed = false;
+  const weMap = {};
+  db.we.forEach(e => weMap[e.id] = e);
+  const waMap = {};
+  db.wa.forEach(e => waMap[e.id] = e);
+  bew.forEach(row => {
+    const e = { id:row.id, datum:row.datum, artikelId:row.artikel_id,
+      charge:row.charge, mhd:row.mhd, menge:row.menge,
+      ls:row.ls, qs:row.qs, durch:row.durch, empf:row.empf, vz:row.vz };
+    if (row.typ==='WE' && !weMap[row.id]) { weMap[row.id]=e; changed=true; }
+    else if (row.typ==='WA' && !waMap[row.id]) { waMap[row.id]=e; changed=true; }
+  });
+  if (changed) {
+    db.we = Object.values(weMap);
+    db.wa = Object.values(waMap);
+    try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) {}
+    setCloudStatus('ok', 'Aktualisiert ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
+    renderDashboard();
+    showToast('🔄 Neue Bewegungen von Kollegen geladen','success');
+  } else {
+    setCloudStatus('ok', 'Live · ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
+  }
+}, 30000);
+
+// Config modal
+function openCloudCfg() {
+  const cfg = getCfg();
+  document.getElementById('cfg-url').value = cfg.url || '';
+  document.getElementById('cfg-key').value = cfg.key || '';
+  document.getElementById('cfg-test-result').textContent = '';
+  document.getElementById('cfg-modal').classList.add('open');
+}
+function closeCloudCfg() {
+  document.getElementById('cfg-modal').classList.remove('open');
+}
+
+async function saveCloudCfg() {
+  const url = document.getElementById('cfg-url').value.trim().replace(/\/+$/,'');
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!url || !key) { document.getElementById('cfg-test-result').textContent = '✗ URL und Key eingeben'; return; }
+  document.getElementById('cfg-test-result').textContent = 'Verbindung testen…';
+  saveCfg({ url, key });
+  // Test connection
+  const test = await sbFetch('bewegungen?select=id&limit=1');
+  if (test !== null) {
+    document.getElementById('cfg-test-result').textContent = '✓ Verbindung erfolgreich!';
+    setCloudStatus('ok', 'Verbunden');
+    saveCfg({ url, key, connected: true });
+    showToast('✓ Supabase verbunden','success');
+    setTimeout(() => pullFromCloud(), 500);
+  } else {
+    document.getElementById('cfg-test-result').textContent = '✗ Verbindung fehlgeschlagen – URL und Key prüfen';
+    setCloudStatus('error', 'Verbindungsfehler');
+    saveCfg({ url, key, connected: false });
+  }
+}
+
+// Cloud init handled by enterApp() after login
+</script>
+
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-logo">Swiss<span>Vitale</span></div>
+  <div class="login-sub">LAGERVERWALTUNG</div>
+  <div class="login-card">
+    <div class="login-tabs">
+      <button class="login-tab active" id="ltab-login" onclick="showLoginTab('login')">Anmelden</button>
+      <button class="login-tab" id="ltab-register" onclick="showLoginTab('register')">Registrieren</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="lform-login">
+      <div class="form-group">
+        <label class="form-label">Benutzername</label>
+        <input class="form-input" id="l-username" placeholder="max.muster" autocomplete="username" autocapitalize="none">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Passwort</label>
+        <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()" style="margin-top:4px">Anmelden</button>
+      <div class="login-error" id="l-error"></div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="lform-register" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Vorname Nachname</label>
+        <input class="form-input" id="r-name" placeholder="Max Muster">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Benutzername</label>
+        <input class="form-input" id="r-username" placeholder="max.muster" autocapitalize="none">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Passwort</label>
+        <input class="form-input" id="r-password" type="password" placeholder="min. 6 Zeichen">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Passwort bestätigen</label>
+        <input class="form-input" id="r-password2" type="password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-success" onclick="doRegister()" style="margin-top:4px">Account erstellen</button>
+      <div class="login-error" id="r-error"></div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin-top:20px;text-align:center;font-family:var(--ff-mono)">
+    Passwörter werden verschlüsselt gespeichert<br>
+    Accounts werden in Supabase synchronisiert
+  </div>
+</div>
+
+<!-- USER MENU -->
+<div class="user-menu" id="user-menu" onclick="event.stopPropagation()">
+  <div class="user-menu-name">
+    <div id="um-name">—</div>
+    <div class="user-menu-role" id="um-username">—</div>
+  </div>
+  <div class="user-menu-item" onclick="openChangePassword()">🔑 Passwort ändern</div>
+  <div class="user-menu-item danger" onclick="doLogout()">↩ Abmelden</div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-backdrop" id="modal-pw" onclick="closeModal('modal-pw')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔑 Passwort ändern</div>
+    <div class="form-group">
+      <label class="form-label">Aktuelles Passwort</label>
+      <input class="form-input" id="pw-old" type="password" placeholder="••••••••">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Neues Passwort</label>
+      <input class="form-input" id="pw-new" type="password" placeholder="min. 6 Zeichen">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Bestätigen</label>
+      <input class="form-input" id="pw-new2" type="password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="doChangePassword()">Passwort speichern</button>
+    <div class="login-error" id="pw-error" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// AUTH SYSTEM
+// ══════════════════════════════════════════
+const AUTH_KEY = 'sv_auth_session';
+let currentUser = null; // { id, name, username, passwordHash }
+
+// Simple hash (SHA-256 via SubtleCrypto)
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw + 'sv_salt_2025'));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// Load session from localStorage
+function loadSession() {
+  try {
+    const s = localStorage.getItem(AUTH_KEY);
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return null;
+}
+function saveSession(user) {
+  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+}
+function clearSession() {
+  localStorage.removeItem(AUTH_KEY);
+}
+
+// Supabase user table helpers
+async function sbGetUser(username) {
+  const r = await sbFetch('benutzer?username=eq.' + encodeURIComponent(username) + '&select=*');
+  return r && r.length ? r[0] : null;
+}
+async function sbCreateUser(name, username, passwordHash) {
+  return await sbFetch('benutzer?on_conflict=username', {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates',
+    body: JSON.stringify({ name, username, password_hash: passwordHash, created_at: new Date().toISOString() })
+  });
+}
+async function sbUpdatePassword(username, newHash) {
+  return await sbFetch('benutzer?username=eq.' + encodeURIComponent(username), {
+    method: 'PATCH',
+    body: JSON.stringify({ password_hash: newHash })
+  });
+}
+
+// Local user fallback (when no Supabase)
+const LOCAL_USERS_KEY = 'sv_local_users';
+function getLocalUsers() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY)||'[]'); } catch(e) { return []; }
+}
+function saveLocalUser(user) {
+  const users = getLocalUsers();
+  const idx = users.findIndex(u=>u.username===user.username);
+  if(idx>=0) users[idx]=user; else users.push(user);
+  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+}
+
+// ── LOGIN / REGISTER ─────────────────────
+function showLoginTab(tab) {
+  document.getElementById('lform-login').style.display = tab==='login'?'block':'none';
+  document.getElementById('lform-register').style.display = tab==='register'?'block':'none';
+  document.getElementById('ltab-login').classList.toggle('active', tab==='login');
+  document.getElementById('ltab-register').classList.toggle('active', tab==='register');
+  document.getElementById('l-error').textContent = '';
+  document.getElementById('r-error').textContent = '';
+}
+
+async function doLogin() {
+  const username = document.getElementById('l-username').value.trim().toLowerCase();
+  const password = document.getElementById('l-password').value;
+  const errEl = document.getElementById('l-error');
+  if(!username||!password){errEl.textContent='Alle Felder ausfüllen';return;}
+  errEl.textContent = 'Prüfe…';
+
+  const hash = await hashPassword(password);
+
+  // Try Supabase first
+  const cfg = getCfg();
+  let user = null;
+  if(cfg.url && cfg.key) {
+    user = await sbGetUser(username);
+  }
+  // Fallback to local
+  if(!user) {
+    user = getLocalUsers().find(u=>u.username===username);
+  }
+  if(!user){errEl.textContent='Benutzer nicht gefunden';return;}
+  if(user.password_hash !== hash){errEl.textContent='Falsches Passwort';return;}
+
+  currentUser = { id: user.id||user.username, name: user.name, username: user.username };
+  saveSession(currentUser);
+  enterApp();
+}
+
+async function doRegister() {
+  const name     = document.getElementById('r-name').value.trim();
+  const username = document.getElementById('r-username').value.trim().toLowerCase();
+  const pw       = document.getElementById('r-password').value;
+  const pw2      = document.getElementById('r-password2').value;
+  const errEl    = document.getElementById('r-error');
+
+  if(!name||!username||!pw){errEl.textContent='Alle Felder ausfüllen';return;}
+  if(pw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
+  if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
+  if(!/^[a-z0-9._-]+$/.test(username)){errEl.textContent='Benutzername: nur a-z, 0-9, . _ -';return;}
+
+  errEl.textContent = 'Erstelle Account…';
+  const hash = await hashPassword(pw);
+  const userObj = { name, username, password_hash: hash };
+
+  // Save to Supabase if available
+  const cfg = getCfg();
+  if(cfg.url && cfg.key) {
+    const existing = await sbGetUser(username);
+    if(existing){errEl.textContent='Benutzername bereits vergeben';return;}
+    const r = await sbCreateUser(name, username, hash);
+    if(r===null){errEl.textContent='Supabase-Fehler – lokal gespeichert';saveLocalUser(userObj);}
+  } else {
+    const existing = getLocalUsers().find(u=>u.username===username);
+    if(existing){errEl.textContent='Benutzername bereits vergeben';return;}
+    saveLocalUser(userObj);
+  }
+
+  currentUser = { name, username };
+  saveSession(currentUser);
+  errEl.textContent = '✓ Account erstellt!';
+  setTimeout(()=>enterApp(), 500);
+}
+
+function doLogout() {
+  clearSession();
+  currentUser = null;
+  document.getElementById('user-menu').classList.remove('open');
+  showLoginScreen();
+}
+
+// ── CHANGE PASSWORD ──────────────────────
+function openChangePassword() {
+  document.getElementById('user-menu').classList.remove('open');
+  ['pw-old','pw-new','pw-new2'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pw-error').textContent='';
+  document.getElementById('modal-pw').classList.add('open');
+}
+async function doChangePassword() {
+  const oldPw  = document.getElementById('pw-old').value;
+  const newPw  = document.getElementById('pw-new').value;
+  const newPw2 = document.getElementById('pw-new2').value;
+  const errEl  = document.getElementById('pw-error');
+  if(!oldPw||!newPw){errEl.textContent='Alle Felder ausfüllen';return;}
+  if(newPw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
+  if(newPw!==newPw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
+
+  const oldHash = await hashPassword(oldPw);
+  const newHash = await hashPassword(newPw);
+
+  // Verify old password
+  const cfg = getCfg();
+  let user = null;
+  if(cfg.url&&cfg.key) user = await sbGetUser(currentUser.username);
+  if(!user) user = getLocalUsers().find(u=>u.username===currentUser.username);
+  if(!user||user.password_hash!==oldHash){errEl.textContent='Aktuelles Passwort falsch';return;}
+
+  // Update
+  if(cfg.url&&cfg.key) await sbUpdatePassword(currentUser.username, newHash);
+  const localUser = getLocalUsers().find(u=>u.username===currentUser.username);
+  if(localUser){ localUser.password_hash=newHash; saveLocalUser(localUser); }
+
+  errEl.style.color='var(--accent2)';
+  errEl.textContent='✓ Passwort geändert';
+  setTimeout(()=>closeModal('modal-pw'),1200);
+}
+
+// ── USER MENU ────────────────────────────
+function toggleUserMenu() {
+  const m = document.getElementById('user-menu');
+  m.classList.toggle('open');
+}
+document.addEventListener('click', ()=>document.getElementById('user-menu').classList.remove('open'));
+
+// ── APP ENTER / SHOW LOGIN ───────────────
+function enterApp() {
+  document.getElementById('login-screen').classList.remove('show');
+  document.getElementById('app').style.display='flex';
+  // Update avatar
+  const initials = currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('um-name').textContent = currentUser.name;
+  document.getElementById('um-username').textContent = '@' + currentUser.username;
+  // Init app
+  populateSelects();
+  renderDashboard();
+  document.getElementById('sync-time').textContent = new Date().toLocaleDateString('de-CH');
+  setTimeout(updateBackupReminder, 500);
+  const cfg = getCfg();
+  if(cfg.url&&cfg.key){ setCloudStatus('syncing','Verbinde…'); setTimeout(()=>pullFromCloud(),800); }
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.add('show');
+  document.getElementById('app').style.display='none';
+}
+
+// ── BOOT ─────────────────────────────────
+(function boot() {
+  // Hide app until logged in
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').classList.add('show');
+  // Check existing session
+  const session = loadSession();
+  if(session) {
+    currentUser = session;
+    enterApp();
+  }
+})();
+</script>
+
+</body>
+</html>
