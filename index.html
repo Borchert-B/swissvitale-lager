@@ -2017,15 +2017,13 @@ const CFG_KEY = 'sv_supabase_cfg';
 function getCfg() {
   try { return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); } catch(e) { return {}; }
 }
-function saveCfg(cfg) {
-  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
-}
+function saveCfg(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
 
 function setCloudStatus(state, text) {
   const dot = document.getElementById('cloud-dot');
   const txt = document.getElementById('cloud-status-txt');
-  dot.className = 'cloud-dot ' + state;
-  txt.textContent = text;
+  if(dot) dot.className = 'cloud-dot ' + state;
+  if(txt) txt.textContent = text;
 }
 
 async function sbFetch(path, options={}) {
@@ -2045,104 +2043,54 @@ async function sbFetch(path, options={}) {
     if (!r.ok) { const err = await r.text(); throw new Error(err); }
     if (r.status === 204) return [];
     return await r.json();
-  } catch(e) {
-    console.error('Supabase error:', e);
-    return null;
-  }
+  } catch(e) { console.error('Supabase error:', e); return null; }
 }
 
-// Push one WE or WA entry to cloud
-async function pushBewegung(e, typ) {
-  const row = {
-    id: e.id, typ,
-    datum: e.datum,
-    artikel_id: e.artikelId,
-    charge: e.charge || null,
-    mhd: e.mhd || null,
-    menge: e.menge,
-    ls: e.ls || null,
-    qs: e.qs || null,
-    durch: e.durch || null,
-    empf: e.empf || null,
-    vz: e.vz || null
-  };
-  return await sbFetch('bewegungen?on_conflict=id', {
-    method: 'POST',
-    prefer: 'resolution=merge-duplicates',
-    body: JSON.stringify(row)
+async function sbUpdatePassword(username, newHash) {
+  return await sbFetch('benutzer?username=eq.' + encodeURIComponent(username), {
+    method: 'PATCH', body: JSON.stringify({ password_hash: newHash })
   });
 }
 
-// Push inventur state
-async function pushInventurEntry(artikelId, istBestand) {
-  return await sbFetch('inventur?on_conflict=artikel_id', {
-    method: 'POST',
-    prefer: 'resolution=merge-duplicates',
-    body: JSON.stringify({ artikel_id: artikelId, ist_bestand: istBestand })
-  });
-}
-
-// Pull all data from cloud and merge into local db
 async function pullFromCloud() {
   const cfg = getCfg();
   if (!cfg.url || !cfg.key) { showToast('Zuerst Supabase konfigurieren','error'); return; }
   setCloudStatus('syncing', 'Lade Cloud-Daten…');
   try {
-    // Fetch EVERYTHING from cloud – no merging, cloud is the single source of truth
     const [bew, inv, konf] = await Promise.all([
       sbFetch('bewegungen?select=*&order=datum.asc&limit=10000'),
       sbFetch('inventur?select=*'),
       sbFetch('konfektionierung?select=*&order=datum.asc&limit=10000')
     ]);
     if (bew === null) { setCloudStatus('error', 'Verbindungsfehler'); return; }
-
-    // Rebuild WE and WA completely from cloud
     const newWe = [], newWa = [];
     bew.forEach(row => {
-      const e = {
-        id: row.id, datum: row.datum, artikelId: row.artikel_id,
-        charge: row.charge, mhd: row.mhd, menge: row.menge,
-        ls: row.ls, qs: row.qs, durch: row.durch, empf: row.empf, vz: row.vz
-      };
-      if (row.typ === 'WE') newWe.push(e);
-      else newWa.push(e);
+      const e = { id:row.id, datum:row.datum, artikelId:row.artikel_id,
+        charge:row.charge, mhd:row.mhd, menge:row.menge,
+        ls:row.ls, qs:row.qs, durch:row.durch, empf:row.empf, vz:row.vz };
+      if (row.typ === 'WE') newWe.push(e); else newWa.push(e);
     });
-
-    // Only overwrite if cloud has data (prevent wiping if Supabase table is empty)
     const hasCloudData = bew.length > 0 || (inv && inv.length > 0);
-    if (hasCloudData || bew.length === 0) {
-      db.we = newWe;
-      db.wa = newWa;
-    }
-
-    // Inventur
+    if (hasCloudData || bew.length === 0) { db.we = newWe; db.wa = newWa; }
     if (inv && inv.length > 0) {
       db.inventur = {};
       inv.forEach(row => { db.inventur[row.artikel_id] = row.ist_bestand; });
     }
-
-    // Konfektionierung
     if (konf && konf.length > 0) {
       db.konfektionierung = konf.map(row => ({
-        id: row.id, datum: row.datum,
-        bulkArtikelId: row.bulk_artikel_id, bulkCharge: row.bulk_charge, bulkMenge: row.bulk_menge,
-        fertigArtikelId: row.fertig_artikel_id, fertigCharge: row.fertig_charge, fertigMenge: row.fertig_menge,
-        fertigMhd: row.fertig_mhd, dienstleister: row.dienstleister, dlName: row.dl_name, durch: row.durch
+        id:row.id, datum:row.datum,
+        bulkArtikelId:row.bulk_artikel_id, bulkCharge:row.bulk_charge, bulkMenge:row.bulk_menge,
+        fertigArtikelId:row.fertig_artikel_id, fertigCharge:row.fertig_charge, fertigMenge:row.fertig_menge,
+        fertigMhd:row.fertig_mhd, dienstleister:row.dienstleister, dlName:row.dl_name, durch:row.durch
       }));
     }
-
     try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) {}
     const t = new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
     setCloudStatus('ok', 'Synchronisiert ' + t);
     document.getElementById('sync-time').textContent = t;
     renderDashboard();
-    if (document.getElementById('screen-bestand').classList.contains('active')) renderBestand();
-    if (document.getElementById('screen-bewegungen').classList.contains('active')) renderBewegungen();
     closeCloudCfg();
-  } catch(e) {
-    console.error(e);
-    setCloudStatus('error', 'Sync-Fehler');
-  }
+  } catch(e) { console.error(e); setCloudStatus('error', 'Sync-Fehler'); }
 }
 
 async function pushAllToCloud() {
@@ -2152,21 +2100,14 @@ async function pushAllToCloud() {
   const el = document.getElementById('cfg-test-result');
   if(el) el.textContent = 'Lade hoch…';
   try {
-    // Push in batches to avoid timeouts
     const allBew = [
-      ...db.we.map(e => ({
-        id:e.id, typ:'WE', datum:e.datum, artikel_id:e.artikelId,
+      ...db.we.map(e => ({ id:e.id, typ:'WE', datum:e.datum, artikel_id:e.artikelId,
         charge:e.charge||null, mhd:e.mhd||null, menge:e.menge,
-        ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null
-      })),
-      ...db.wa.map(e => ({
-        id:e.id, typ:'WA', datum:e.datum, artikel_id:e.artikelId,
+        ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null })),
+      ...db.wa.map(e => ({ id:e.id, typ:'WA', datum:e.datum, artikel_id:e.artikelId,
         charge:e.charge||null, mhd:e.mhd||null, menge:e.menge,
-        ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null
-      }))
+        ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null }))
     ];
-
-    // Push bewegungen in chunks of 50
     let ok = 0;
     for (let i = 0; i < allBew.length; i += 50) {
       const chunk = allBew.slice(i, i+50);
@@ -2175,115 +2116,66 @@ async function pushAllToCloud() {
       });
       if (r !== null) ok += chunk.length;
     }
-
-    // Push inventur
     const invRows = Object.entries(db.inventur).map(([artikel_id, ist_bestand]) => ({artikel_id, ist_bestand}));
     if (invRows.length) {
       await sbFetch('inventur?on_conflict=artikel_id', {
         method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(invRows)
       });
     }
-
-    // Push konfektionierung
     const konfRows = (db.konfektionierung||[]).map(k => ({
       id:k.id, datum:k.datum,
       bulk_artikel_id:k.bulkArtikelId, bulk_charge:k.bulkCharge, bulk_menge:k.bulkMenge,
       fertig_artikel_id:k.fertigArtikelId, fertig_charge:k.fertigCharge, fertig_menge:k.fertigMenge,
       fertig_mhd:k.fertigMhd, dienstleister:k.dienstleister, dl_name:k.dlName||null, durch:k.durch||null
     }));
-    if (konfRows.length) {
-      for (let i = 0; i < konfRows.length; i += 50) {
-        const chunk = konfRows.slice(i, i+50);
-        await sbFetch('konfektionierung?on_conflict=id', {
-          method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(chunk)
-        });
-      }
+    for (let i = 0; i < konfRows.length; i += 50) {
+      await sbFetch('konfektionierung?on_conflict=id', {
+        method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(konfRows.slice(i,i+50))
+      });
     }
-
     setCloudStatus('ok', 'Synchronisiert');
-    if(el) el.textContent = `✓ ${ok} Buchungen + Inventur + Konfektionierung hochgeladen`;
+    if(el) el.textContent = `✓ ${ok} Buchungen hochgeladen`;
     showToast(`✓ ${ok} Buchungen hochgeladen`,'success');
-    localStorage.setItem('sv_last_push', new Date().toISOString());
   } catch(e) {
     setCloudStatus('error', 'Upload-Fehler');
     if(el) el.textContent = '✗ Fehler: ' + e.message;
   }
 }
 
-// Push single new entry immediately after booking
-async function pushSingleBewegung(e, typ) {
-  const cfg = getCfg();
-  if (!cfg.url || !cfg.key) return;
-  const row = {
-    id:e.id, typ, datum:e.datum, artikel_id:e.artikelId,
-    charge:e.charge||null, mhd:e.mhd||null, menge:e.menge,
-    ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null
-  };
-  await sbFetch('bewegungen?on_conflict=id', {
-    method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(row)
-  });
-}
-
-// Override saveDB: save locally AND push to cloud immediately
 window.saveDB = function() {
   try {
     localStorage.setItem(DB_KEY, JSON.stringify(db));
     const t = new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('sync-time').textContent = t;
   } catch(e) {}
-
-  // Push ALL current data to cloud to keep it in sync
   const cfg = getCfg();
   if (!cfg.url || !cfg.key) return;
   setCloudStatus('syncing', 'Synchronisiert…');
-  // Short delay to batch rapid saves
   clearTimeout(window._syncTimer);
-  window._syncTimer = setTimeout(async () => {
-    await pushAllToCloud();
-  }, 1200);
+  window._syncTimer = setTimeout(async () => { await pushAllToCloud(); }, 1200);
 };
 
-// Poll every 30s: full replace from cloud (not merge)
 setInterval(async () => {
   const cfg = getCfg();
   if (!cfg.url || !cfg.key) return;
-  // Only auto-pull if not currently editing (no modal open)
   if (document.querySelector('.modal-backdrop.open')) return;
   const prevWe = db.we.length, prevWa = db.wa.length;
   await pullFromCloud();
   const newEntries = (db.we.length - prevWe) + (db.wa.length - prevWa);
-  if (newEntries > 0) {
-    showToast(`🔄 ${newEntries} neue Buchung${newEntries!==1?'en':''} von Kollegen`, 'success');
-  }
+  if (newEntries > 0) showToast(`🔄 ${newEntries} neue Buchung${newEntries!==1?'en':''} von Kollegen`, 'success');
 }, 30000);
 
-// MASTER SYNC – this device becomes the single source of truth
 async function masterSync() {
   const el = document.getElementById('cfg-test-result');
-  const confirmed = confirm(
-    'Achtung: Alle Daten von DIESEM Gerät werden in die Cloud hochgeladen und ersetzen dort alles.\n\n' +
-    'Alle anderen Geräte laden danach automatisch den neuen Stand.\n\n' +
-    'Nur ausführen wenn dieses Gerät die vollständigsten Daten hat!'
-  );
+  const confirmed = confirm('Alle Daten von DIESEM Gerät werden in die Cloud hochgeladen.
+
+Nur ausführen wenn dieses Gerät die vollständigsten Daten hat!');
   if (!confirmed) return;
   if(el) el.textContent = 'Lade alle Daten hoch…';
-  setCloudStatus('syncing', 'Master-Sync…');
-
-  // First delete all existing cloud bewegungen and push fresh
-  try {
-    // Delete all existing entries (Supabase: delete with filter that matches all)
-    await sbFetch('bewegungen?id=neq.PLACEHOLDER_THAT_MATCHES_NOTHING', { method:'DELETE' });
-    await sbFetch('inventur?artikel_id=neq.PLACEHOLDER_THAT_MATCHES_NOTHING', { method:'DELETE' });
-    if(el) el.textContent = 'Cloud geleert – lade lokal hoch…';
-  } catch(e) {
-    if(el) el.textContent = 'Löschen fehlgeschlagen – versuche trotzdem hochzuladen…';
-  }
-
   await pushAllToCloud();
-  if(el) el.textContent = '✓ Master-Sync abgeschlossen. Andere Geräte werden beim nächsten Öffnen synchronisiert.';
+  if(el) el.textContent = '✓ Master-Sync abgeschlossen.';
 }
 
-// Config modal
 function openCloudCfg() {
   const cfg = getCfg();
   document.getElementById('cfg-url').value = cfg.url || '';
@@ -2291,9 +2183,7 @@ function openCloudCfg() {
   document.getElementById('cfg-test-result').textContent = '';
   document.getElementById('cfg-modal').classList.add('open');
 }
-function closeCloudCfg() {
-  document.getElementById('cfg-modal').classList.remove('open');
-}
+function closeCloudCfg() { document.getElementById('cfg-modal').classList.remove('open'); }
 
 async function saveCloudCfg() {
   const url = document.getElementById('cfg-url').value.trim().replace(/\/+$/,'');
@@ -2301,7 +2191,6 @@ async function saveCloudCfg() {
   if (!url || !key) { document.getElementById('cfg-test-result').textContent = '✗ URL und Key eingeben'; return; }
   document.getElementById('cfg-test-result').textContent = 'Verbindung testen…';
   saveCfg({ url, key });
-  // Test connection
   const test = await sbFetch('bewegungen?select=id&limit=1');
   if (test !== null) {
     document.getElementById('cfg-test-result').textContent = '✓ Verbindung erfolgreich!';
@@ -2310,15 +2199,11 @@ async function saveCloudCfg() {
     showToast('✓ Supabase verbunden','success');
     setTimeout(() => pullFromCloud(), 500);
   } else {
-    document.getElementById('cfg-test-result').textContent = '✗ Verbindung fehlgeschlagen – URL und Key prüfen';
+    document.getElementById('cfg-test-result').textContent = '✗ Verbindung fehlgeschlagen';
     setCloudStatus('error', 'Verbindungsfehler');
-    saveCfg({ url, key, connected: false });
   }
 }
-
-// Cloud init handled by enterApp() after login
 </script>
-
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
@@ -2329,55 +2214,50 @@ async function saveCloudCfg() {
       <button class="login-tab active" id="ltab-login" onclick="showLoginTab('login')">Anmelden</button>
       <button class="login-tab" id="ltab-register" onclick="showLoginTab('register')">Registrieren</button>
     </div>
-
-    <!-- LOGIN FORM -->
     <div id="lform-login">
       <div class="form-group">
         <label class="form-label">Benutzername</label>
-        <input class="form-input" id="l-username" placeholder="max.muster" autocomplete="username" autocapitalize="none">
+        <input class="form-input" id="l-username" placeholder="vorname.nachname" autocomplete="username" autocapitalize="none">
       </div>
       <div class="form-group">
         <label class="form-label">Passwort</label>
         <div class="pw-wrap">
-        <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('l-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
+          <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px">
+          <button type="button" class="pw-toggle" onclick="togglePw('l-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
       </div>
       <button class="btn btn-primary" onclick="doLogin()" style="margin-top:4px">Anmelden</button>
       <div class="login-error" id="l-error"></div>
     </div>
-
-    <!-- REGISTER FORM -->
     <div id="lform-register" style="display:none">
       <div class="form-group">
         <label class="form-label">Vorname Nachname</label>
-        <input class="form-input" id="r-name" placeholder="Max Muster">
+        <input class="form-input" id="r-name" placeholder="Branco Borchert">
       </div>
       <div class="form-group">
         <label class="form-label">Benutzername</label>
-        <input class="form-input" id="r-username" placeholder="max.muster" autocapitalize="none">
+        <input class="form-input" id="r-username" placeholder="branco.borchert" autocapitalize="none">
       </div>
       <div class="form-group">
         <label class="form-label">Passwort</label>
         <div class="pw-wrap">
-        <input class="form-input" id="r-password" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('r-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
+          <input class="form-input" id="r-password" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
+          <button type="button" class="pw-toggle" onclick="togglePw('r-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Passwort bestätigen</label>
         <div class="pw-wrap">
-        <input class="form-input" id="r-password2" type="password" placeholder="••••••••" style="padding-right:44px">
-        <button type="button" class="pw-toggle" onclick="togglePw('r-password2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      </div>
+          <input class="form-input" id="r-password2" type="password" placeholder="••••••••" style="padding-right:44px">
+          <button type="button" class="pw-toggle" onclick="togglePw('r-password2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
       </div>
       <button class="btn btn-success" onclick="doRegister()" style="margin-top:4px">Account erstellen</button>
       <div class="login-error" id="r-error"></div>
     </div>
   </div>
   <div style="font-size:11px;color:var(--muted);margin-top:20px;text-align:center;font-family:var(--ff-mono)">
-    Passwörter werden verschlüsselt gespeichert<br>
-    Accounts werden in Supabase synchronisiert
+    Passwörter werden verschlüsselt gespeichert
   </div>
 </div>
 
@@ -2400,299 +2280,35 @@ async function saveCloudCfg() {
     <div class="form-group">
       <label class="form-label">Aktuelles Passwort</label>
       <div class="pw-wrap">
-      <input class="form-input" id="pw-old" type="password" placeholder="••••••••" style="padding-right:44px">
-      <button type="button" class="pw-toggle" onclick="togglePw('pw-old',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-    </div>
+        <input class="form-input" id="pw-old" type="password" placeholder="••••••••" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('pw-old',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">Neues Passwort</label>
       <div class="pw-wrap">
-      <input class="form-input" id="pw-new" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
-      <button type="button" class="pw-toggle" onclick="togglePw('pw-new',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-    </div>
+        <input class="form-input" id="pw-new" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('pw-new',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">Bestätigen</label>
       <div class="pw-wrap">
-      <input class="form-input" id="pw-new2" type="password" placeholder="••••••••" style="padding-right:44px">
-      <button type="button" class="pw-toggle" onclick="togglePw('pw-new2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-    </div>
+        <input class="form-input" id="pw-new2" type="password" placeholder="••••••••" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('pw-new2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
     </div>
     <button class="btn btn-primary" onclick="doChangePassword()">Passwort speichern</button>
     <div class="login-error" id="pw-error" style="margin-top:8px"></div>
   </div>
 </div>
 
-<script>
-// ══════════════════════════════════════════
-// AUTH SYSTEM
-// ══════════════════════════════════════════
-const AUTH_KEY = 'sv_auth_session';
-let currentUser = null; // { id, name, username, passwordHash }
-
-// Simple hash (SHA-256 via SubtleCrypto)
-async function hashPassword(pw) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw + 'sv_salt_2025'));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-// Load session from localStorage
-function loadSession() {
-  try {
-    const s = localStorage.getItem(AUTH_KEY);
-    if (s) return JSON.parse(s);
-  } catch(e) {}
-  return null;
-}
-function saveSession(user) {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-}
-function clearSession() {
-  localStorage.removeItem(AUTH_KEY);
-}
-
-// Supabase user table helpers
-async function sbGetUser(username) {
-  const r = await sbFetch('benutzer?username=eq.' + encodeURIComponent(username) + '&select=*');
-  return r && r.length ? r[0] : null;
-}
-async function sbCreateUser(name, username, passwordHash) {
-  return await sbFetch('benutzer?on_conflict=username', {
-    method: 'POST',
-    prefer: 'resolution=merge-duplicates',
-    body: JSON.stringify({ name, username, password_hash: passwordHash, created_at: new Date().toISOString() })
-  });
-}
-async function sbUpdatePassword(username, newHash) {
-  return await sbFetch('benutzer?username=eq.' + encodeURIComponent(username), {
-    method: 'PATCH',
-    body: JSON.stringify({ password_hash: newHash })
-  });
-}
-
-// Local user fallback (when no Supabase)
-const LOCAL_USERS_KEY = 'sv_local_users';
-function getLocalUsers() {
-  try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY)||'[]'); } catch(e) { return []; }
-}
-function saveLocalUser(user) {
-  const users = getLocalUsers();
-  const idx = users.findIndex(u=>u.username===user.username);
-  if(idx>=0) users[idx]=user; else users.push(user);
-  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
-}
-
-// ── LOGIN / REGISTER ─────────────────────
-function showLoginTab(tab) {
-  document.getElementById('lform-login').style.display = tab==='login'?'block':'none';
-  document.getElementById('lform-register').style.display = tab==='register'?'block':'none';
-  document.getElementById('ltab-login').classList.toggle('active', tab==='login');
-  document.getElementById('ltab-register').classList.toggle('active', tab==='register');
-  document.getElementById('l-error').textContent = '';
-  document.getElementById('r-error').textContent = '';
-}
-
-async function doLogin() {
-  const username = document.getElementById('l-username').value.trim().toLowerCase();
-  const password = document.getElementById('l-password').value;
-  const errEl = document.getElementById('l-error');
-  if(!username||!password){errEl.textContent='Alle Felder ausfüllen';return;}
-  errEl.textContent = 'Prüfe…';
-
-  const hash = await hashPassword(password);
-
-  // Try Supabase first
-  const cfg = getCfg();
-  let user = null;
-  if(cfg.url && cfg.key) {
-    user = await sbGetUser(username);
-  }
-  // Fallback to local
-  if(!user) {
-    user = getLocalUsers().find(u=>u.username===username);
-  }
-  if(!user){errEl.textContent='Benutzer nicht gefunden';return;}
-  if(user.password_hash !== hash){errEl.textContent='Falsches Passwort';return;}
-
-  currentUser = { id: user.id||user.username, name: user.name, username: user.username };
-  saveSession(currentUser);
-  enterApp();
-}
-
-async function doRegister() {
-  const name     = document.getElementById('r-name').value.trim();
-  const username = document.getElementById('r-username').value.trim().toLowerCase();
-  const pw       = document.getElementById('r-password').value;
-  const pw2      = document.getElementById('r-password2').value;
-  const errEl    = document.getElementById('r-error');
-
-  if(!name||!username||!pw){errEl.textContent='Alle Felder ausfüllen';return;}
-  if(pw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
-  if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
-  if(!/^[a-z0-9._-]+$/.test(username)){errEl.textContent='Benutzername: nur a-z, 0-9, . _ -';return;}
-
-  errEl.textContent = 'Erstelle Account…';
-  const hash = await hashPassword(pw);
-  const userObj = { name, username, password_hash: hash };
-
-  // Save to Supabase if available
-  const cfg = getCfg();
-  if(cfg.url && cfg.key) {
-    const existing = await sbGetUser(username);
-    if(existing){errEl.textContent='Benutzername bereits vergeben';return;}
-    const r = await sbCreateUser(name, username, hash);
-    if(r===null){errEl.textContent='Supabase-Fehler – lokal gespeichert';saveLocalUser(userObj);}
-  } else {
-    const existing = getLocalUsers().find(u=>u.username===username);
-    if(existing){errEl.textContent='Benutzername bereits vergeben';return;}
-    saveLocalUser(userObj);
-  }
-
-  currentUser = { name, username };
-  saveSession(currentUser);
-  errEl.textContent = '✓ Account erstellt!';
-  setTimeout(()=>enterApp(), 500);
-}
-
-function doLogout() {
-  clearSession();
-  currentUser = null;
-  document.getElementById('user-menu').classList.remove('open');
-  showLoginScreen();
-}
-
-// ── CHANGE PASSWORD ──────────────────────
-function openChangePassword() {
-  document.getElementById('user-menu').classList.remove('open');
-  ['pw-old','pw-new','pw-new2'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('pw-error').textContent='';
-  document.getElementById('modal-pw').classList.add('open');
-}
-async function doChangePassword() {
-  const oldPw  = document.getElementById('pw-old').value;
-  const newPw  = document.getElementById('pw-new').value;
-  const newPw2 = document.getElementById('pw-new2').value;
-  const errEl  = document.getElementById('pw-error');
-  if(!oldPw||!newPw){errEl.textContent='Alle Felder ausfüllen';return;}
-  if(newPw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
-  if(newPw!==newPw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
-
-  const oldHash = await hashPassword(oldPw);
-  const newHash = await hashPassword(newPw);
-
-  // Verify old password
-  const cfg = getCfg();
-  let user = null;
-  if(cfg.url&&cfg.key) user = await sbGetUser(currentUser.username);
-  if(!user) user = getLocalUsers().find(u=>u.username===currentUser.username);
-  if(!user||user.password_hash!==oldHash){errEl.textContent='Aktuelles Passwort falsch';return;}
-
-  // Update
-  if(cfg.url&&cfg.key) await sbUpdatePassword(currentUser.username, newHash);
-  const localUser = getLocalUsers().find(u=>u.username===currentUser.username);
-  if(localUser){ localUser.password_hash=newHash; saveLocalUser(localUser); }
-
-  errEl.style.color='var(--accent2)';
-  errEl.textContent='✓ Passwort geändert';
-  setTimeout(()=>closeModal('modal-pw'),1200);
-}
-
-// ── USER MENU ────────────────────────────
-function toggleUserMenu() {
-  const m = document.getElementById('user-menu');
-  m.classList.toggle('open');
-}
-document.addEventListener('click', ()=>document.getElementById('user-menu').classList.remove('open'));
-
-// ── APP ENTER / SHOW LOGIN ───────────────
-function enterApp() {
-  document.getElementById('login-screen').classList.remove('show');
-  document.getElementById('app').style.display='flex';
-  // Update avatar
-  const initials = currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  document.getElementById('user-avatar').textContent = initials;
-  document.getElementById('um-name').textContent = currentUser.name;
-  document.getElementById('um-username').textContent = '@' + currentUser.username;
-  // Init app
-  populateSelects();
-  renderDashboard();
-  document.getElementById('sync-time').textContent = new Date().toLocaleDateString('de-CH');
-  setTimeout(updateBackupReminder, 500);
-  setTimeout(checkAdminAccess, 200);
-  const cfg = getCfg();
-  if(cfg.url&&cfg.key){ setCloudStatus('syncing','Verbinde…'); setTimeout(()=>pullFromCloud(),800); }
-}
-
-function showLoginScreen() {
-  document.getElementById('login-screen').classList.add('show');
-  document.getElementById('app').style.display='none';
-}
-
-// ── BOOT ─────────────────────────────────
-(function boot() {
-  // Hide app until logged in
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').classList.add('show');
-
-  // ADMIN RESET: set password SwissVitale2025 for ALL local users + all Supabase users
-  (async function adminReset() {
-    const RESET_KEY = 'sv_reset_all_v3';
-    if (localStorage.getItem(RESET_KEY)) return;
-    const newHash = '2f51b18f3d3df127510954526317f99bb60fd71efec61bb2658d981dbf631ba5';
-
-    // Reset ALL local users
-    const users = getLocalUsers();
-    users.forEach(u => { u.password_hash = newHash; });
-    if (users.length) {
-      localStorage.setItem('sv_local_users', JSON.stringify(users));
-      console.log('Local users reset:', users.map(u=>u.username));
-    }
-
-    // Reset ALL Supabase users
-    const cfg = getCfg();
-    if (cfg.url && cfg.key) {
-      try {
-        // Fetch all users and reset each one
-        const allUsers = await sbFetch('benutzer?select=username');
-        if (allUsers && allUsers.length) {
-          for (const u of allUsers) {
-            await sbUpdatePassword(u.username, newHash);
-            console.log('Supabase reset:', u.username);
-          }
-        }
-      } catch(e) { console.log('Supabase reset error:', e); }
-    }
-
-    localStorage.setItem(RESET_KEY, '1');
-    // Show info on login screen
-    const errEl = document.getElementById('l-error');
-    if (errEl) {
-      errEl.style.color = 'var(--accent2)';
-      errEl.textContent = '✓ Passwort für alle Benutzer auf SwissVitale2025 zurückgesetzt';
-    }
-  })();
-
-  // Check existing session
-  const session = loadSession();
-  if(session) {
-    currentUser = session;
-    enterApp();
-  }
-})();
-</script>
-
-
-<!-- ADMIN PANEL MODAL -->
+<!-- ADMIN PANEL -->
 <div class="modal-backdrop" id="modal-admin" onclick="closeModal('modal-admin')">
   <div class="modal" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto">
     <div class="modal-handle"></div>
     <div class="modal-title">👥 Benutzerverwaltung</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">
-      Nur für Administratoren – Passwörter zurücksetzen und Benutzer verwalten.
-    </div>
-    <div id="admin-user-list">
-      <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Lade Benutzer…</div>
-    </div>
+    <div id="admin-user-list"></div>
   </div>
 </div>
 
@@ -2701,9 +2317,7 @@ function showLoginScreen() {
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="modal-title">🔑 Passwort zurücksetzen</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
-      Neues Passwort für: <b id="reset-username-label">—</b>
-    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Benutzer: <b id="reset-username-label">—</b></div>
     <div class="form-group">
       <label class="form-label">Neues Passwort</label>
       <div class="pw-wrap">
@@ -2722,137 +2336,256 @@ function showLoginScreen() {
       <button class="btn btn-primary" style="flex:2" onclick="doResetPassword()">Passwort setzen</button>
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-reset')">Abbrechen</button>
     </div>
-    <div id="reset-error" style="font-size:12px;font-family:var(--ff-mono);text-align:center;margin-top:8px;min-height:18px"></div>
+    <div id="reset-error" class="login-error" style="margin-top:8px"></div>
   </div>
 </div>
 
-
 <script>
 // ══════════════════════════════════════════
-// PASSWORD VISIBILITY TOGGLE
+// AUTH – NEU: Erster Benutzer = Admin
 // ══════════════════════════════════════════
-const EYE_ON  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-const EYE_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+const AUTH_KEY = 'sv_auth_session';
+const LOCAL_USERS_KEY = 'sv_local_users';
+let currentUser = null;
 
-function togglePw(inputId, btn) {
-  const input = document.getElementById(inputId);
-  if (!input) return;
-  const isHidden = input.type === 'password';
-  input.type = isHidden ? 'text' : 'password';
-  btn.innerHTML = isHidden ? EYE_OFF : EYE_ON;
-  btn.style.color = isHidden ? 'var(--accent)' : 'var(--muted)';
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw + 'sv_salt_2025'));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-// ══════════════════════════════════════════
-// ADMIN – BENUTZERVERWALTUNG
-// ══════════════════════════════════════════
-const ADMIN_USERS = ['borchert', 'branco', 'branco.borchert', 'admin', 'b.borchert']; // add more admin usernames here
-let resetTargetUsername = null;
+function loadSession() {
+  try { const s = localStorage.getItem(AUTH_KEY); if(s) return JSON.parse(s); } catch(e) {}
+  return null;
+}
+function saveSession(u) { localStorage.setItem(AUTH_KEY, JSON.stringify(u)); }
+function clearSession() { localStorage.removeItem(AUTH_KEY); }
 
-function isAdmin() {
-  if (!currentUser) return false;
-  // First registered user is admin, or username in ADMIN_USERS list
-  return ADMIN_USERS.includes(currentUser.username) || currentUser.isAdmin === true;
+function getLocalUsers() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_USERS_KEY)||'[]'); } catch(e) { return []; }
+}
+function saveLocalUser(u) {
+  const users = getLocalUsers();
+  const idx = users.findIndex(x=>x.username===u.username);
+  if(idx>=0) users[idx]=u; else users.push(u);
+  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
 }
 
+// Supabase user helpers
+async function sbGetUser(username) {
+  const r = await sbFetch('benutzer?username=eq.' + encodeURIComponent(username) + '&select=*');
+  return r && r.length ? r[0] : null;
+}
+async function sbGetAllUsers() {
+  return await sbFetch('benutzer?select=id,name,username,is_admin,created_at&order=created_at.asc') || [];
+}
+async function sbCountUsers() {
+  const r = await sbFetch('benutzer?select=id');
+  return r ? r.length : 0;
+}
+async function sbCreateUser(name, username, passwordHash, isAdmin) {
+  return await sbFetch('benutzer?on_conflict=username', {
+    method:'POST', prefer:'resolution=merge-duplicates',
+    body: JSON.stringify({ name, username, password_hash: passwordHash, is_admin: isAdmin, created_at: new Date().toISOString() })
+  });
+}
+
+function isAdmin() { return currentUser && currentUser.isAdmin === true; }
+
+// LOGIN
+function showLoginTab(tab) {
+  document.getElementById('lform-login').style.display = tab==='login'?'block':'none';
+  document.getElementById('lform-register').style.display = tab==='register'?'block':'none';
+  document.getElementById('ltab-login').classList.toggle('active', tab==='login');
+  document.getElementById('ltab-register').classList.toggle('active', tab==='register');
+  document.getElementById('l-error').textContent = '';
+  document.getElementById('r-error').textContent = '';
+}
+
+async function doLogin() {
+  const username = document.getElementById('l-username').value.trim().toLowerCase();
+  const password = document.getElementById('l-password').value;
+  const errEl = document.getElementById('l-error');
+  if(!username||!password){errEl.textContent='Alle Felder ausfüllen';return;}
+  errEl.textContent='Prüfe…';
+  const hash = await hashPassword(password);
+  // Try Supabase first
+  const cfg = getCfg();
+  let user = null;
+  if(cfg.url && cfg.key) user = await sbGetUser(username);
+  // Fallback local
+  if(!user) user = getLocalUsers().find(u=>u.username===username);
+  if(!user){errEl.textContent='Benutzer nicht gefunden';return;}
+  if(user.password_hash !== hash){errEl.textContent='Falsches Passwort';return;}
+  currentUser = { name:user.name, username:user.username, isAdmin: user.is_admin||user.isAdmin||false };
+  saveSession(currentUser);
+  enterApp();
+}
+
+async function doRegister() {
+  const name     = document.getElementById('r-name').value.trim();
+  const username = document.getElementById('r-username').value.trim().toLowerCase();
+  const pw       = document.getElementById('r-password').value;
+  const pw2      = document.getElementById('r-password2').value;
+  const errEl    = document.getElementById('r-error');
+  if(!name||!username||!pw){errEl.textContent='Alle Felder ausfüllen';return;}
+  if(pw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
+  if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
+  if(!/^[a-z0-9._-]+$/.test(username)){errEl.textContent='Nur a-z, 0-9, . _ - erlaubt';return;}
+  errEl.textContent='Erstelle Account…';
+  const hash = await hashPassword(pw);
+  // First user ever = Admin
+  const cfg = getCfg();
+  let isFirstUser = false;
+  if(cfg.url && cfg.key) {
+    const count = await sbCountUsers();
+    isFirstUser = count === 0;
+    const existing = await sbGetUser(username);
+    if(existing){errEl.textContent='Benutzername bereits vergeben';return;}
+    const r = await sbCreateUser(name, username, hash, isFirstUser);
+    if(r===null){errEl.textContent='Fehler – bitte nochmals versuchen';return;}
+  } else {
+    const localUsers = getLocalUsers();
+    isFirstUser = localUsers.length === 0;
+    if(localUsers.find(u=>u.username===username)){errEl.textContent='Benutzername bereits vergeben';return;}
+    saveLocalUser({ name, username, password_hash: hash, isAdmin: isFirstUser });
+  }
+  currentUser = { name, username, isAdmin: isFirstUser };
+  saveSession(currentUser);
+  if(isFirstUser) errEl.style.color='var(--accent2)', errEl.textContent='✓ Account erstellt – du bist Administrator!';
+  else errEl.textContent='';
+  setTimeout(()=>enterApp(), isFirstUser?800:100);
+}
+
+function doLogout() {
+  clearSession(); currentUser=null;
+  document.getElementById('user-menu').classList.remove('open');
+  showLoginScreen();
+}
+
+// CHANGE PASSWORD
+function openChangePassword() {
+  document.getElementById('user-menu').classList.remove('open');
+  ['pw-old','pw-new','pw-new2'].forEach(id=>{const el=document.getElementById(id);el.value='';el.type='password';});
+  document.getElementById('pw-error').textContent='';
+  document.getElementById('modal-pw').classList.add('open');
+}
+async function doChangePassword() {
+  const oldPw=document.getElementById('pw-old').value;
+  const newPw=document.getElementById('pw-new').value;
+  const newPw2=document.getElementById('pw-new2').value;
+  const errEl=document.getElementById('pw-error');
+  if(!oldPw||!newPw){errEl.textContent='Alle Felder ausfüllen';return;}
+  if(newPw.length<6){errEl.textContent='Min. 6 Zeichen';return;}
+  if(newPw!==newPw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
+  const oldHash=await hashPassword(oldPw), newHash=await hashPassword(newPw);
+  const cfg=getCfg();
+  let user=null;
+  if(cfg.url&&cfg.key) user=await sbGetUser(currentUser.username);
+  if(!user) user=getLocalUsers().find(u=>u.username===currentUser.username);
+  if(!user||user.password_hash!==oldHash){errEl.textContent='Aktuelles Passwort falsch';return;}
+  if(cfg.url&&cfg.key) await sbUpdatePassword(currentUser.username, newHash);
+  const lu=getLocalUsers().find(u=>u.username===currentUser.username);
+  if(lu){lu.password_hash=newHash;saveLocalUser(lu);}
+  errEl.style.color='var(--accent2)';errEl.textContent='✓ Passwort gespeichert';
+  setTimeout(()=>closeModal('modal-pw'),1200);
+}
+
+// ADMIN
 async function openAdminPanel() {
   document.getElementById('user-menu').classList.remove('open');
   document.getElementById('modal-admin').classList.add('open');
-  await loadAdminUserList();
-}
-
-async function loadAdminUserList() {
-  const el = document.getElementById('admin-user-list');
-  el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Lade Benutzer…</div>';
-
-  let users = [];
-  const cfg = getCfg();
-  if (cfg.url && cfg.key) {
-    const r = await sbFetch('benutzer?select=id,name,username,created_at&order=created_at.asc');
-    if (r) users = r;
-  }
-  // Also include local users
-  const localUsers = getLocalUsers();
-  localUsers.forEach(lu => {
-    if (!users.find(u => u.username === lu.username)) {
-      users.push({ name: lu.name, username: lu.username, created_at: null, local: true });
-    }
-  });
-
-  if (!users.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Keine Benutzer gefunden</div>';
-    return;
-  }
-
-  let h = '';
-  users.forEach(u => {
-    const initials = u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    const isMe = u.username === currentUser?.username;
-    const adminMark = ADMIN_USERS.includes(u.username);
-    const date = u.created_at ? new Date(u.created_at).toLocaleDateString('de-CH') : 'Lokal';
-    h += `<div class="admin-user-row">
-      <div class="admin-avatar" style="background:${isMe?'var(--accent2)':'var(--accent)'}">${initials}</div>
+  document.getElementById('admin-user-list').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Lade…</div>';
+  // Load from Supabase
+  const cfg=getCfg();
+  let users=[];
+  if(cfg.url&&cfg.key) users=await sbGetAllUsers();
+  // Merge local
+  getLocalUsers().forEach(lu=>{if(!users.find(u=>u.username===lu.username)) users.push({name:lu.name,username:lu.username,is_admin:lu.isAdmin,created_at:null});});
+  if(!users.length){document.getElementById('admin-user-list').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Keine Benutzer gefunden</div>';return;}
+  let h='';
+  users.forEach(u=>{
+    const initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const isMe=u.username===currentUser?.username;
+    const date=u.created_at?new Date(u.created_at).toLocaleDateString('de-CH'):'Lokal';
+    h+=`<div class="admin-user-row">
+      <div class="admin-avatar" style="background:${u.is_admin?'var(--warn)':isMe?'var(--accent2)':'var(--accent)'}">${initials}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px">
+        <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
           ${u.name}
-          ${adminMark?'<span class="admin-badge">ADMIN</span>':''}
+          ${u.is_admin?'<span class="admin-badge" style="background:var(--warn)">ADMIN</span>':''}
           ${isMe?'<span class="admin-badge" style="background:var(--accent2)">ICH</span>':''}
-          ${u.local?'<span class="admin-badge" style="background:var(--muted)">LOKAL</span>':''}
         </div>
-        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px">
-          @${u.username} · Erstellt: ${date}
-        </div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px">@${u.username} · ${date}</div>
       </div>
-      ${!isMe ? `<button class="btn btn-outline btn-sm" onclick="openResetPw('${u.username}')">🔑 Reset</button>` : '<span style="font-size:11px;color:var(--muted)">Du</span>'}
+      ${!isMe?`<button class="btn btn-outline btn-sm" onclick="openResetPw('${u.username}')">🔑 Reset</button>`:''}
     </div>`;
   });
-  el.innerHTML = h;
+  document.getElementById('admin-user-list').innerHTML=h;
 }
 
+let resetTargetUsername=null;
 function openResetPw(username) {
-  resetTargetUsername = username;
-  document.getElementById('reset-username-label').textContent = username;
-  document.getElementById('reset-pw').value = '';
-  document.getElementById('reset-pw2').value = '';
-  document.getElementById('reset-pw').type = 'password';
-  document.getElementById('reset-pw2').type = 'password';
-  document.getElementById('reset-error').textContent = '';
+  resetTargetUsername=username;
+  document.getElementById('reset-username-label').textContent=username;
+  ['reset-pw','reset-pw2'].forEach(id=>{const el=document.getElementById(id);el.value='';el.type='password';});
+  document.getElementById('reset-error').textContent='';
   closeModal('modal-admin');
   document.getElementById('modal-reset').classList.add('open');
 }
-
 async function doResetPassword() {
-  const pw  = document.getElementById('reset-pw').value;
-  const pw2 = document.getElementById('reset-pw2').value;
-  const errEl = document.getElementById('reset-error');
-  if (!pw || pw.length < 6) { errEl.textContent = 'Min. 6 Zeichen'; return; }
-  if (pw !== pw2) { errEl.textContent = 'Passwörter stimmen nicht überein'; return; }
-  errEl.textContent = 'Speichere…';
-
-  const newHash = await hashPassword(pw);
-
-  // Update in Supabase
-  const cfg = getCfg();
-  if (cfg.url && cfg.key) {
-    const r = await sbUpdatePassword(resetTargetUsername, newHash);
-    if (r === null) { errEl.textContent = '✗ Fehler beim Speichern'; return; }
-  }
-  // Update locally
-  const localUsers = getLocalUsers();
-  const lu = localUsers.find(u => u.username === resetTargetUsername);
-  if (lu) { lu.password_hash = newHash; localStorage.setItem('sv_local_users', JSON.stringify(localUsers)); }
-
-  errEl.style.color = 'var(--accent2)';
-  errEl.textContent = `✓ Passwort für @${resetTargetUsername} zurückgesetzt`;
-  showToast(`✓ Passwort für ${resetTargetUsername} gesetzt`, 'success');
-  setTimeout(() => { closeModal('modal-reset'); errEl.style.color = ''; }, 1500);
+  const pw=document.getElementById('reset-pw').value;
+  const pw2=document.getElementById('reset-pw2').value;
+  const errEl=document.getElementById('reset-error');
+  if(!pw||pw.length<6){errEl.textContent='Min. 6 Zeichen';return;}
+  if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
+  errEl.textContent='Speichere…';
+  const newHash=await hashPassword(pw);
+  const cfg=getCfg();
+  if(cfg.url&&cfg.key) await sbUpdatePassword(resetTargetUsername, newHash);
+  const lu=getLocalUsers().find(u=>u.username===resetTargetUsername);
+  if(lu){lu.password_hash=newHash;saveLocalUser(lu);}
+  errEl.style.color='var(--accent2)';
+  errEl.textContent=`✓ Passwort für @${resetTargetUsername} gesetzt`;
+  showToast(`✓ Passwort für ${resetTargetUsername} zurückgesetzt`,'success');
+  setTimeout(()=>closeModal('modal-reset'),1500);
 }
 
-// Show admin button in menu if user is admin
-function checkAdminAccess() {
-  const btn = document.getElementById('um-admin-btn');
-  if (btn) btn.style.display = isAdmin() ? 'flex' : 'none';
+// PASSWORD TOGGLE
+const EYE_ON=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EYE_OFF=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+function togglePw(id,btn){const el=document.getElementById(id);const show=el.type==='password';el.type=show?'text':'password';btn.innerHTML=show?EYE_OFF:EYE_ON;btn.style.color=show?'var(--accent)':'var(--muted)';}
+
+// ENTER / LOGOUT
+function enterApp() {
+  document.getElementById('login-screen').classList.remove('show');
+  document.getElementById('app').style.display='flex';
+  const initials=currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent=initials;
+  document.getElementById('um-name').textContent=currentUser.name;
+  document.getElementById('um-username').textContent='@'+currentUser.username+(currentUser.isAdmin?' · Admin':'');
+  const adminBtn=document.getElementById('um-admin-btn');
+  if(adminBtn) adminBtn.style.display=isAdmin()?'flex':'none';
+  populateSelects();
+  renderDashboard();
+  document.getElementById('sync-time').textContent=new Date().toLocaleDateString('de-CH');
+  setTimeout(updateBackupReminder, 500);
+  const cfg=getCfg();
+  if(cfg.url&&cfg.key){setCloudStatus('syncing','Verbinde…');setTimeout(()=>pullFromCloud(),800);}
 }
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.add('show');
+  document.getElementById('app').style.display='none';
+}
+function toggleUserMenu(){document.getElementById('user-menu').classList.toggle('open');}
+document.addEventListener('click',()=>document.getElementById('user-menu').classList.remove('open'));
+
+// BOOT
+(function boot(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').classList.add('show');
+  const session=loadSession();
+  if(session){currentUser=session;enterApp();}
+})();
 </script>
 
 </body>
