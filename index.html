@@ -2457,27 +2457,50 @@ async function doRegister() {
   if(!name||!username||!pw){errEl.textContent='Alle Felder ausfüllen';return;}
   if(pw.length<6){errEl.textContent='Passwort min. 6 Zeichen';return;}
   if(pw!==pw2){errEl.textContent='Passwörter stimmen nicht überein';return;}
-  errEl.style.color='var(--muted)'; errEl.textContent='Erstelle Account…';
+  errEl.style.color='var(--muted)';
+  errEl.textContent='Erstelle Account…';
   const hash=await hashPassword(pw);
-  const cfg=getCfg();
-  let isFirstUser=false;
-  if(cfg.url&&cfg.key){
-    const existing=await sbGetUser(username);
-    if(existing){errEl.style.color='var(--danger)';errEl.textContent='Benutzername bereits vergeben';return;}
-    const count=await sbCountUsers();
-    isFirstUser=count===0;
-    const r=await sbFetch('benutzer?on_conflict=username',{method:'POST',prefer:'resolution=merge-duplicates',body:JSON.stringify({name,username,password_hash:hash,is_admin:isFirstUser})});
-    if(r===null){errEl.style.color='var(--danger)';errEl.textContent='Verbindungsfehler – bitte nochmals versuchen';return;}
-  } else {
-    const lu=getLocalUsers(); isFirstUser=lu.length===0;
-    if(lu.find(u=>u.username===username)){errEl.style.color='var(--danger)';errEl.textContent='Benutzername bereits vergeben';return;}
-    saveLocalUser({name,username,password_hash:hash,isAdmin:isFirstUser});
+
+  // Schritt 1: IMMER lokal speichern – sofort, kein Netzwerk nötig
+  const localUsers=getLocalUsers();
+  const isFirstUser=localUsers.length===0;
+  if(localUsers.find(u=>u.username===username)){
+    errEl.style.color='var(--danger)';
+    errEl.textContent='Benutzername bereits vergeben';
+    return;
   }
-  if(isFirstUser){const a=JSON.parse(localStorage.getItem('sv_admins')||'[]');if(!a.includes(username)){a.push(username);localStorage.setItem('sv_admins',JSON.stringify(a));}}
+  saveLocalUser({name,username,password_hash:hash,isAdmin:isFirstUser});
+  if(isFirstUser){
+    const a=JSON.parse(localStorage.getItem('sv_admins')||'[]');
+    if(!a.includes(username)){a.push(username);localStorage.setItem('sv_admins',JSON.stringify(a));}
+  }
   currentUser={name,username,isAdmin:isFirstUser};
   saveSession(currentUser);
-  if(isFirstUser){errEl.style.color='var(--accent2)';errEl.textContent='✓ Account erstellt – du bist Administrator!';setTimeout(()=>enterApp(),900);}
-  else enterApp();
+
+  // Schritt 2: Supabase im Hintergrund – App läuft auch ohne
+  const cfg=getCfg();
+  if(cfg.url&&cfg.key){
+    try {
+      await Promise.race([
+        sbFetch('benutzer?on_conflict=username',{
+          method:'POST',prefer:'resolution=merge-duplicates',
+          body:JSON.stringify({name,username,password_hash:hash,is_admin:isFirstUser})
+        }),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000))
+      ]);
+    } catch(e) {
+      console.warn('Supabase Registrierung fehlgeschlagen (wird später synchronisiert):', e.message);
+    }
+  }
+
+  // Schritt 3: App öffnen – unabhängig von Supabase
+  if(isFirstUser){
+    errEl.style.color='var(--accent2)';
+    errEl.textContent='✓ Account erstellt – du bist Administrator!';
+    setTimeout(()=>enterApp(),900);
+  } else {
+    enterApp();
+  }
 }
 function doLogout() {
   clearSession(); currentUser=null;
