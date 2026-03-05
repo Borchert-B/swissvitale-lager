@@ -194,6 +194,16 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--text);font-fam
 .export-option-desc{font-size:12px;color:var(--muted);line-height:1.5}
 /* BACKUP REMINDER */
 .backup-banner{background:linear-gradient(135deg,rgba(245,166,35,.15),rgba(245,166,35,.05));border:1px solid var(--warn);border-radius:13px;padding:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+
+/* PASSWORD TOGGLE */
+.pw-wrap{position:relative}
+.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;display:flex;align-items:center}
+.pw-toggle:hover{color:var(--text)}
+/* ADMIN PANEL */
+.admin-user-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.admin-user-row:last-child{border-bottom:none}
+.admin-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--ff-display);font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
+.admin-badge{font-size:9px;background:var(--accent);color:#fff;padding:2px 6px;border-radius:4px;font-family:var(--ff-mono);font-weight:700;margin-left:4px}
 </style>
 </head>
 <body>
@@ -1962,7 +1972,25 @@ let tt;function showToast(msg,type=''){const t=document.getElementById('toast');
     <div id="cfg-test-result" style="font-size:12px;font-family:var(--ff-mono);text-align:center;min-height:18px"></div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
       <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">Supabase SQL – einmalig ausführen falls noch nicht gemacht:<br>
-<code style="font-size:9px;color:var(--accent2);background:var(--card);padding:4px 6px;border-radius:5px;display:block;margin-top:4px;white-space:pre-wrap">create table benutzer (
+<code style="font-size:9px;color:var(--accent2);background:var(--card);padding:4px 6px;border-radius:5px;display:block;margin-top:4px;white-space:pre-wrap">create table if not exists konfektionierung (
+  id text primary key,
+  datum text,
+  bulk_artikel_id text,
+  bulk_charge text,
+  bulk_menge numeric,
+  fertig_artikel_id text,
+  fertig_charge text,
+  fertig_menge numeric,
+  fertig_mhd text,
+  dienstleister text,
+  dl_name text,
+  durch text,
+  created_at timestamptz default now()
+);
+alter table konfektionierung enable row level security;
+create policy "public_rw" on konfektionierung for all using (true) with check (true);
+
+create table if not exists benutzer (
   id uuid default gen_random_uuid() primary key,
   name text not null,
   username text unique not null,
@@ -1973,8 +2001,8 @@ alter table benutzer enable row level security;
 create policy "public_rw" on benutzer for all using (true) with check (true);</code></div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Daten-Management</div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-outline btn-sm" style="flex:1" onclick="pushAllToCloud()">📤 Lokale Daten hochladen</button>
-        <button class="btn btn-outline btn-sm" style="flex:1" onclick="pullFromCloud()">📥 Cloud-Daten laden</button>
+        <button class="btn btn-primary btn-sm" style="flex:1" onclick="masterSync()">📤 Dieses Gerät → Master</button>
+        <button class="btn btn-outline btn-sm" style="flex:1" onclick="pullFromCloud()">📥 Cloud übernehmen</button>
       </div>
     </div>
   </div>
@@ -2058,124 +2086,202 @@ async function pushInventurEntry(artikelId, istBestand) {
 async function pullFromCloud() {
   const cfg = getCfg();
   if (!cfg.url || !cfg.key) { showToast('Zuerst Supabase konfigurieren','error'); return; }
-  setCloudStatus('syncing', 'Daten laden…');
+  setCloudStatus('syncing', 'Lade Cloud-Daten…');
   try {
-    const [bew, inv] = await Promise.all([
-      sbFetch('bewegungen?select=*&order=datum.asc'),
-      sbFetch('inventur?select=*')
+    // Fetch EVERYTHING from cloud – no merging, cloud is the single source of truth
+    const [bew, inv, konf] = await Promise.all([
+      sbFetch('bewegungen?select=*&order=datum.asc&limit=10000'),
+      sbFetch('inventur?select=*'),
+      sbFetch('konfektionierung?select=*&order=datum.asc&limit=10000')
     ]);
-    if (bew === null) { setCloudStatus('error', 'Fehler beim Laden'); return; }
+    if (bew === null) { setCloudStatus('error', 'Verbindungsfehler'); return; }
 
-    // Merge bewegungen
-    const weMap = {}, waMap = {};
-    db.we.forEach(e => weMap[e.id] = e);
-    db.wa.forEach(e => waMap[e.id] = e);
-
+    // Rebuild WE and WA completely from cloud
+    const newWe = [], newWa = [];
     bew.forEach(row => {
-      const e = { id: row.id, datum: row.datum, artikelId: row.artikel_id,
+      const e = {
+        id: row.id, datum: row.datum, artikelId: row.artikel_id,
         charge: row.charge, mhd: row.mhd, menge: row.menge,
-        ls: row.ls, qs: row.qs, durch: row.durch, empf: row.empf, vz: row.vz };
-      if (row.typ === 'WE') weMap[row.id] = e;
-      else waMap[row.id] = e;
+        ls: row.ls, qs: row.qs, durch: row.durch, empf: row.empf, vz: row.vz
+      };
+      if (row.typ === 'WE') newWe.push(e);
+      else newWa.push(e);
     });
-    db.we = Object.values(weMap);
-    db.wa = Object.values(waMap);
 
-    // Merge inventur
-    if (inv) inv.forEach(row => { db.inventur[row.artikel_id] = row.ist_bestand; });
+    // Only overwrite if cloud has data (prevent wiping if Supabase table is empty)
+    const hasCloudData = bew.length > 0 || (inv && inv.length > 0);
+    if (hasCloudData || bew.length === 0) {
+      db.we = newWe;
+      db.wa = newWa;
+    }
 
-    saveDB();
-    setCloudStatus('ok', 'Synchronisiert ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
-    showToast('✓ Cloud-Daten geladen','success');
+    // Inventur
+    if (inv && inv.length > 0) {
+      db.inventur = {};
+      inv.forEach(row => { db.inventur[row.artikel_id] = row.ist_bestand; });
+    }
+
+    // Konfektionierung
+    if (konf && konf.length > 0) {
+      db.konfektionierung = konf.map(row => ({
+        id: row.id, datum: row.datum,
+        bulkArtikelId: row.bulk_artikel_id, bulkCharge: row.bulk_charge, bulkMenge: row.bulk_menge,
+        fertigArtikelId: row.fertig_artikel_id, fertigCharge: row.fertig_charge, fertigMenge: row.fertig_menge,
+        fertigMhd: row.fertig_mhd, dienstleister: row.dienstleister, dlName: row.dl_name, durch: row.durch
+      }));
+    }
+
+    try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) {}
+    const t = new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    setCloudStatus('ok', 'Synchronisiert ' + t);
+    document.getElementById('sync-time').textContent = t;
     renderDashboard();
+    if (document.getElementById('screen-bestand').classList.contains('active')) renderBestand();
+    if (document.getElementById('screen-bewegungen').classList.contains('active')) renderBewegungen();
     closeCloudCfg();
   } catch(e) {
+    console.error(e);
     setCloudStatus('error', 'Sync-Fehler');
-    showToast('Sync fehlgeschlagen','error');
   }
 }
 
-// Push all local data to cloud
 async function pushAllToCloud() {
   const cfg = getCfg();
   if (!cfg.url || !cfg.key) { showToast('Zuerst Supabase konfigurieren','error'); return; }
   setCloudStatus('syncing', 'Hochladen…');
-  document.getElementById('cfg-test-result').textContent = 'Lade hoch…';
+  const el = document.getElementById('cfg-test-result');
+  if(el) el.textContent = 'Lade hoch…';
   try {
-    let ok = 0, fail = 0;
-    for (const e of db.we) { const r = await pushBewegung(e,'WE'); r!==null?ok++:fail++; }
-    for (const e of db.wa) { const r = await pushBewegung(e,'WA'); r!==null?ok++:fail++; }
-    for (const [id, val] of Object.entries(db.inventur)) {
-      if (val !== undefined) await pushInventurEntry(id, val);
+    // Push in batches to avoid timeouts
+    const allBew = [
+      ...db.we.map(e => ({
+        id:e.id, typ:'WE', datum:e.datum, artikel_id:e.artikelId,
+        charge:e.charge||null, mhd:e.mhd||null, menge:e.menge,
+        ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null
+      })),
+      ...db.wa.map(e => ({
+        id:e.id, typ:'WA', datum:e.datum, artikel_id:e.artikelId,
+        charge:e.charge||null, mhd:e.mhd||null, menge:e.menge,
+        ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null
+      }))
+    ];
+
+    // Push bewegungen in chunks of 50
+    let ok = 0;
+    for (let i = 0; i < allBew.length; i += 50) {
+      const chunk = allBew.slice(i, i+50);
+      const r = await sbFetch('bewegungen?on_conflict=id', {
+        method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(chunk)
+      });
+      if (r !== null) ok += chunk.length;
     }
+
+    // Push inventur
+    const invRows = Object.entries(db.inventur).map(([artikel_id, ist_bestand]) => ({artikel_id, ist_bestand}));
+    if (invRows.length) {
+      await sbFetch('inventur?on_conflict=artikel_id', {
+        method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(invRows)
+      });
+    }
+
+    // Push konfektionierung
+    const konfRows = (db.konfektionierung||[]).map(k => ({
+      id:k.id, datum:k.datum,
+      bulk_artikel_id:k.bulkArtikelId, bulk_charge:k.bulkCharge, bulk_menge:k.bulkMenge,
+      fertig_artikel_id:k.fertigArtikelId, fertig_charge:k.fertigCharge, fertig_menge:k.fertigMenge,
+      fertig_mhd:k.fertigMhd, dienstleister:k.dienstleister, dl_name:k.dlName||null, durch:k.durch||null
+    }));
+    if (konfRows.length) {
+      for (let i = 0; i < konfRows.length; i += 50) {
+        const chunk = konfRows.slice(i, i+50);
+        await sbFetch('konfektionierung?on_conflict=id', {
+          method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(chunk)
+        });
+      }
+    }
+
     setCloudStatus('ok', 'Synchronisiert');
-    document.getElementById('cfg-test-result').textContent = `✓ ${ok} Einträge hochgeladen${fail?', '+fail+' Fehler':''}`;
-    showToast(`✓ ${ok} Einträge hochgeladen`,'success');
+    if(el) el.textContent = `✓ ${ok} Buchungen + Inventur + Konfektionierung hochgeladen`;
+    showToast(`✓ ${ok} Buchungen hochgeladen`,'success');
+    localStorage.setItem('sv_last_push', new Date().toISOString());
   } catch(e) {
     setCloudStatus('error', 'Upload-Fehler');
-    document.getElementById('cfg-test-result').textContent = '✗ Fehler: ' + e.message;
+    if(el) el.textContent = '✗ Fehler: ' + e.message;
   }
 }
 
-// Auto-push after every local save
-const _origSaveDB = saveDB;
-// Patch saveDB to also sync new entries
-let pendingSync = null;
-function schedulePush() {
-  clearTimeout(pendingSync);
-  pendingSync = setTimeout(async () => {
-    const cfg = getCfg();
-    if (!cfg.url || !cfg.key) return;
-    setCloudStatus('syncing', 'Synchronisiert…');
-    try {
-      // Push last WE and WA (most recent)
-      const lastWE = db.we[db.we.length-1];
-      const lastWA = db.wa[db.wa.length-1];
-      if (lastWE) await pushBewegung(lastWE, 'WE');
-      if (lastWA) await pushBewegung(lastWA, 'WA');
-      setCloudStatus('ok', 'Synchronisiert ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
-    } catch(e) {
-      setCloudStatus('error', 'Sync-Fehler');
-    }
-  }, 800);
+// Push single new entry immediately after booking
+async function pushSingleBewegung(e, typ) {
+  const cfg = getCfg();
+  if (!cfg.url || !cfg.key) return;
+  const row = {
+    id:e.id, typ, datum:e.datum, artikel_id:e.artikelId,
+    charge:e.charge||null, mhd:e.mhd||null, menge:e.menge,
+    ls:e.ls||null, qs:e.qs||null, durch:e.durch||null, empf:e.empf||null, vz:e.vz||null
+  };
+  await sbFetch('bewegungen?on_conflict=id', {
+    method:'POST', prefer:'resolution=merge-duplicates', body:JSON.stringify(row)
+  });
 }
 
-// Override saveDB to trigger cloud push
-const origSaveDB2 = window.saveDB;
+// Override saveDB: save locally AND push to cloud immediately
 window.saveDB = function() {
-  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); document.getElementById('sync-time').textContent=new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}); } catch(e){}
-  schedulePush();
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    const t = new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('sync-time').textContent = t;
+  } catch(e) {}
+
+  // Push ALL current data to cloud to keep it in sync
+  const cfg = getCfg();
+  if (!cfg.url || !cfg.key) return;
+  setCloudStatus('syncing', 'Synchronisiert…');
+  // Short delay to batch rapid saves
+  clearTimeout(window._syncTimer);
+  window._syncTimer = setTimeout(async () => {
+    await pushAllToCloud();
+  }, 1200);
 };
 
-// Polling: pull fresh data every 30 seconds if connected
+// Poll every 30s: full replace from cloud (not merge)
 setInterval(async () => {
   const cfg = getCfg();
   if (!cfg.url || !cfg.key) return;
-  const bew = await sbFetch('bewegungen?select=*&order=datum.asc');
-  if (bew === null) { setCloudStatus('error', 'Verbindungsfehler'); return; }
-  let changed = false;
-  const weMap = {};
-  db.we.forEach(e => weMap[e.id] = e);
-  const waMap = {};
-  db.wa.forEach(e => waMap[e.id] = e);
-  bew.forEach(row => {
-    const e = { id:row.id, datum:row.datum, artikelId:row.artikel_id,
-      charge:row.charge, mhd:row.mhd, menge:row.menge,
-      ls:row.ls, qs:row.qs, durch:row.durch, empf:row.empf, vz:row.vz };
-    if (row.typ==='WE' && !weMap[row.id]) { weMap[row.id]=e; changed=true; }
-    else if (row.typ==='WA' && !waMap[row.id]) { waMap[row.id]=e; changed=true; }
-  });
-  if (changed) {
-    db.we = Object.values(weMap);
-    db.wa = Object.values(waMap);
-    try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch(e) {}
-    setCloudStatus('ok', 'Aktualisiert ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
-    renderDashboard();
-    showToast('🔄 Neue Bewegungen von Kollegen geladen','success');
-  } else {
-    setCloudStatus('ok', 'Live · ' + new Date().toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}));
+  // Only auto-pull if not currently editing (no modal open)
+  if (document.querySelector('.modal-backdrop.open')) return;
+  const prevWe = db.we.length, prevWa = db.wa.length;
+  await pullFromCloud();
+  const newEntries = (db.we.length - prevWe) + (db.wa.length - prevWa);
+  if (newEntries > 0) {
+    showToast(`🔄 ${newEntries} neue Buchung${newEntries!==1?'en':''} von Kollegen`, 'success');
   }
 }, 30000);
+
+// MASTER SYNC – this device becomes the single source of truth
+async function masterSync() {
+  const el = document.getElementById('cfg-test-result');
+  const confirmed = confirm(
+    'Achtung: Alle Daten von DIESEM Gerät werden in die Cloud hochgeladen und ersetzen dort alles.\n\n' +
+    'Alle anderen Geräte laden danach automatisch den neuen Stand.\n\n' +
+    'Nur ausführen wenn dieses Gerät die vollständigsten Daten hat!'
+  );
+  if (!confirmed) return;
+  if(el) el.textContent = 'Lade alle Daten hoch…';
+  setCloudStatus('syncing', 'Master-Sync…');
+
+  // First delete all existing cloud bewegungen and push fresh
+  try {
+    // Delete all existing entries (Supabase: delete with filter that matches all)
+    await sbFetch('bewegungen?id=neq.PLACEHOLDER_THAT_MATCHES_NOTHING', { method:'DELETE' });
+    await sbFetch('inventur?artikel_id=neq.PLACEHOLDER_THAT_MATCHES_NOTHING', { method:'DELETE' });
+    if(el) el.textContent = 'Cloud geleert – lade lokal hoch…';
+  } catch(e) {
+    if(el) el.textContent = 'Löschen fehlgeschlagen – versuche trotzdem hochzuladen…';
+  }
+
+  await pushAllToCloud();
+  if(el) el.textContent = '✓ Master-Sync abgeschlossen. Andere Geräte werden beim nächsten Öffnen synchronisiert.';
+}
 
 // Config modal
 function openCloudCfg() {
@@ -2232,7 +2338,10 @@ async function saveCloudCfg() {
       </div>
       <div class="form-group">
         <label class="form-label">Passwort</label>
-        <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password">
+        <div class="pw-wrap">
+        <input class="form-input" id="l-password" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('l-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
       </div>
       <button class="btn btn-primary" onclick="doLogin()" style="margin-top:4px">Anmelden</button>
       <div class="login-error" id="l-error"></div>
@@ -2250,11 +2359,17 @@ async function saveCloudCfg() {
       </div>
       <div class="form-group">
         <label class="form-label">Passwort</label>
-        <input class="form-input" id="r-password" type="password" placeholder="min. 6 Zeichen">
+        <div class="pw-wrap">
+        <input class="form-input" id="r-password" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('r-password',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
       </div>
       <div class="form-group">
         <label class="form-label">Passwort bestätigen</label>
-        <input class="form-input" id="r-password2" type="password" placeholder="••••••••">
+        <div class="pw-wrap">
+        <input class="form-input" id="r-password2" type="password" placeholder="••••••••" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('r-password2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
       </div>
       <button class="btn btn-success" onclick="doRegister()" style="margin-top:4px">Account erstellen</button>
       <div class="login-error" id="r-error"></div>
@@ -2272,6 +2387,7 @@ async function saveCloudCfg() {
     <div id="um-name">—</div>
     <div class="user-menu-role" id="um-username">—</div>
   </div>
+  <div class="user-menu-item" id="um-admin-btn" style="display:none" onclick="openAdminPanel()">👥 Benutzerverwaltung</div>
   <div class="user-menu-item" onclick="openChangePassword()">🔑 Passwort ändern</div>
   <div class="user-menu-item danger" onclick="doLogout()">↩ Abmelden</div>
 </div>
@@ -2283,15 +2399,24 @@ async function saveCloudCfg() {
     <div class="modal-title">🔑 Passwort ändern</div>
     <div class="form-group">
       <label class="form-label">Aktuelles Passwort</label>
-      <input class="form-input" id="pw-old" type="password" placeholder="••••••••">
+      <div class="pw-wrap">
+      <input class="form-input" id="pw-old" type="password" placeholder="••••••••" style="padding-right:44px">
+      <button type="button" class="pw-toggle" onclick="togglePw('pw-old',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
     </div>
     <div class="form-group">
       <label class="form-label">Neues Passwort</label>
-      <input class="form-input" id="pw-new" type="password" placeholder="min. 6 Zeichen">
+      <div class="pw-wrap">
+      <input class="form-input" id="pw-new" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
+      <button type="button" class="pw-toggle" onclick="togglePw('pw-new',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
     </div>
     <div class="form-group">
       <label class="form-label">Bestätigen</label>
-      <input class="form-input" id="pw-new2" type="password" placeholder="••••••••">
+      <div class="pw-wrap">
+      <input class="form-input" id="pw-new2" type="password" placeholder="••••••••" style="padding-right:44px">
+      <button type="button" class="pw-toggle" onclick="togglePw('pw-new2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
     </div>
     <button class="btn btn-primary" onclick="doChangePassword()">Passwort speichern</button>
     <div class="login-error" id="pw-error" style="margin-top:8px"></div>
@@ -2493,6 +2618,7 @@ function enterApp() {
   renderDashboard();
   document.getElementById('sync-time').textContent = new Date().toLocaleDateString('de-CH');
   setTimeout(updateBackupReminder, 500);
+  setTimeout(checkAdminAccess, 200);
   const cfg = getCfg();
   if(cfg.url&&cfg.key){ setCloudStatus('syncing','Verbinde…'); setTimeout(()=>pullFromCloud(),800); }
 }
@@ -2514,6 +2640,180 @@ function showLoginScreen() {
     enterApp();
   }
 })();
+</script>
+
+
+<!-- ADMIN PANEL MODAL -->
+<div class="modal-backdrop" id="modal-admin" onclick="closeModal('modal-admin')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👥 Benutzerverwaltung</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      Nur für Administratoren – Passwörter zurücksetzen und Benutzer verwalten.
+    </div>
+    <div id="admin-user-list">
+      <div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Lade Benutzer…</div>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL -->
+<div class="modal-backdrop" id="modal-reset" onclick="closeModal('modal-reset')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔑 Passwort zurücksetzen</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+      Neues Passwort für: <b id="reset-username-label">—</b>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Neues Passwort</label>
+      <div class="pw-wrap">
+        <input class="form-input" id="reset-pw" type="password" placeholder="min. 6 Zeichen" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('reset-pw',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Bestätigen</label>
+      <div class="pw-wrap">
+        <input class="form-input" id="reset-pw2" type="password" placeholder="••••••••" style="padding-right:44px">
+        <button type="button" class="pw-toggle" onclick="togglePw('reset-pw2',this)" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:2" onclick="doResetPassword()">Passwort setzen</button>
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-reset')">Abbrechen</button>
+    </div>
+    <div id="reset-error" style="font-size:12px;font-family:var(--ff-mono);text-align:center;margin-top:8px;min-height:18px"></div>
+  </div>
+</div>
+
+
+<script>
+// ══════════════════════════════════════════
+// PASSWORD VISIBILITY TOGGLE
+// ══════════════════════════════════════════
+const EYE_ON  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EYE_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
+function togglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  btn.innerHTML = isHidden ? EYE_OFF : EYE_ON;
+  btn.style.color = isHidden ? 'var(--accent)' : 'var(--muted)';
+}
+
+// ══════════════════════════════════════════
+// ADMIN – BENUTZERVERWALTUNG
+// ══════════════════════════════════════════
+const ADMIN_USERS = ['borchert', 'admin', 'b.borchert']; // add more admin usernames here
+let resetTargetUsername = null;
+
+function isAdmin() {
+  if (!currentUser) return false;
+  // First registered user is admin, or username in ADMIN_USERS list
+  return ADMIN_USERS.includes(currentUser.username) || currentUser.isAdmin === true;
+}
+
+async function openAdminPanel() {
+  document.getElementById('user-menu').classList.remove('open');
+  document.getElementById('modal-admin').classList.add('open');
+  await loadAdminUserList();
+}
+
+async function loadAdminUserList() {
+  const el = document.getElementById('admin-user-list');
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Lade Benutzer…</div>';
+
+  let users = [];
+  const cfg = getCfg();
+  if (cfg.url && cfg.key) {
+    const r = await sbFetch('benutzer?select=id,name,username,created_at&order=created_at.asc');
+    if (r) users = r;
+  }
+  // Also include local users
+  const localUsers = getLocalUsers();
+  localUsers.forEach(lu => {
+    if (!users.find(u => u.username === lu.username)) {
+      users.push({ name: lu.name, username: lu.username, created_at: null, local: true });
+    }
+  });
+
+  if (!users.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">Keine Benutzer gefunden</div>';
+    return;
+  }
+
+  let h = '';
+  users.forEach(u => {
+    const initials = u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const isMe = u.username === currentUser?.username;
+    const adminMark = ADMIN_USERS.includes(u.username);
+    const date = u.created_at ? new Date(u.created_at).toLocaleDateString('de-CH') : 'Lokal';
+    h += `<div class="admin-user-row">
+      <div class="admin-avatar" style="background:${isMe?'var(--accent2)':'var(--accent)'}">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px">
+          ${u.name}
+          ${adminMark?'<span class="admin-badge">ADMIN</span>':''}
+          ${isMe?'<span class="admin-badge" style="background:var(--accent2)">ICH</span>':''}
+          ${u.local?'<span class="admin-badge" style="background:var(--muted)">LOKAL</span>':''}
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);margin-top:2px">
+          @${u.username} · Erstellt: ${date}
+        </div>
+      </div>
+      ${!isMe ? `<button class="btn btn-outline btn-sm" onclick="openResetPw('${u.username}')">🔑 Reset</button>` : '<span style="font-size:11px;color:var(--muted)">Du</span>'}
+    </div>`;
+  });
+  el.innerHTML = h;
+}
+
+function openResetPw(username) {
+  resetTargetUsername = username;
+  document.getElementById('reset-username-label').textContent = username;
+  document.getElementById('reset-pw').value = '';
+  document.getElementById('reset-pw2').value = '';
+  document.getElementById('reset-pw').type = 'password';
+  document.getElementById('reset-pw2').type = 'password';
+  document.getElementById('reset-error').textContent = '';
+  closeModal('modal-admin');
+  document.getElementById('modal-reset').classList.add('open');
+}
+
+async function doResetPassword() {
+  const pw  = document.getElementById('reset-pw').value;
+  const pw2 = document.getElementById('reset-pw2').value;
+  const errEl = document.getElementById('reset-error');
+  if (!pw || pw.length < 6) { errEl.textContent = 'Min. 6 Zeichen'; return; }
+  if (pw !== pw2) { errEl.textContent = 'Passwörter stimmen nicht überein'; return; }
+  errEl.textContent = 'Speichere…';
+
+  const newHash = await hashPassword(pw);
+
+  // Update in Supabase
+  const cfg = getCfg();
+  if (cfg.url && cfg.key) {
+    const r = await sbUpdatePassword(resetTargetUsername, newHash);
+    if (r === null) { errEl.textContent = '✗ Fehler beim Speichern'; return; }
+  }
+  // Update locally
+  const localUsers = getLocalUsers();
+  const lu = localUsers.find(u => u.username === resetTargetUsername);
+  if (lu) { lu.password_hash = newHash; localStorage.setItem('sv_local_users', JSON.stringify(localUsers)); }
+
+  errEl.style.color = 'var(--accent2)';
+  errEl.textContent = `✓ Passwort für @${resetTargetUsername} zurückgesetzt`;
+  showToast(`✓ Passwort für ${resetTargetUsername} gesetzt`, 'success');
+  setTimeout(() => { closeModal('modal-reset'); errEl.style.color = ''; }, 1500);
+}
+
+// Show admin button in menu if user is admin
+function checkAdminAccess() {
+  const btn = document.getElementById('um-admin-btn');
+  if (btn) btn.style.display = isAdmin() ? 'flex' : 'none';
+}
 </script>
 
 </body>
