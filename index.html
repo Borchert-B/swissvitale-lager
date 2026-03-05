@@ -2021,7 +2021,12 @@ create policy "public_rw" on benutzer for all using (true) with check (true);</c
 const CFG_KEY = 'sv_supabase_cfg';
 
 function getCfg() {
-  try { return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); } catch(e) { return {}; }
+  const DEFAULT = { url: 'https://kwfkgfswjicmswoeubqv.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3ZmtnZnN3amljbXN3b2V1YnF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NTkyNDksImV4cCI6MjA4ODEzNTI0OX0.8e6BrGM_srbowtmHYl4ndFYy4X0CEtSMWefkgepLu0M' };
+  try {
+    const stored = JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
+    // Use stored if manually overridden, else use default
+    return (stored.url && stored.key) ? stored : DEFAULT;
+  } catch(e) { return DEFAULT; }
 }
 function saveCfg(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
 
@@ -2184,8 +2189,8 @@ Nur ausführen wenn dieses Gerät die vollständigsten Daten hat!');
 
 function openCloudCfg() {
   const cfg = getCfg();
-  document.getElementById('cfg-url').value = cfg.url || '';
-  document.getElementById('cfg-key').value = cfg.key || '';
+  document.getElementById('cfg-url').value = cfg.url || 'https://kwfkgfswjicmswoeubqv.supabase.co';
+  document.getElementById('cfg-key').value = cfg.key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3ZmtnZnN3amljbXN3b2V1YnF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NTkyNDksImV4cCI6MjA4ODEzNTI0OX0.8e6BrGM_srbowtmHYl4ndFYy4X0CEtSMWefkgepLu0M';
   document.getElementById('cfg-test-result').textContent = '';
   document.getElementById('cfg-modal').classList.add('open');
 }
@@ -2628,8 +2633,9 @@ function enterApp() {
   renderDashboard();
   document.getElementById('sync-time').textContent=new Date().toLocaleDateString('de-CH');
   setTimeout(updateBackupReminder, 500);
-  const cfg=getCfg();
-  if(cfg.url&&cfg.key){setCloudStatus('syncing','Verbinde…');setTimeout(()=>pullFromCloud(),800);}
+  // Auto-connect to Supabase (credentials hardcoded)
+  setCloudStatus('syncing','Verbinde…');
+  setTimeout(()=>pullFromCloud(),800);
 }
 function showLoginScreen() {
   document.getElementById('login-screen').classList.add('show');
