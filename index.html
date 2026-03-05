@@ -2633,6 +2633,25 @@ function showLoginScreen() {
   // Hide app until logged in
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').classList.add('show');
+
+  // ADMIN RESET: set borchert password to SwissVitale2025
+  (async function adminReset() {
+    const RESET_KEY = 'sv_reset_borchert_done';
+    if (localStorage.getItem(RESET_KEY)) return; // already done
+    const newHash = '2f51b18f3d3df127510954526317f99bb60fd71efec61bb2658d981dbf631ba5';
+    // Update local users
+    const users = getLocalUsers();
+    const u = users.find(x => x.username === 'borchert');
+    if (u) { u.password_hash = newHash; localStorage.setItem('sv_local_users', JSON.stringify(users)); }
+    // Update Supabase
+    const cfg = getCfg();
+    if (cfg.url && cfg.key) {
+      await sbUpdatePassword('borchert', newHash);
+    }
+    localStorage.setItem(RESET_KEY, '1');
+    console.log('Admin password reset done');
+  })();
+
   // Check existing session
   const session = loadSession();
   if(session) {
